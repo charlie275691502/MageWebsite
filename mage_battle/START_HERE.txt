@@ -1,0 +1,58 @@
+========================================
+  MageBattle - 4 Player Card Battle Game
+========================================
+
+QUICK START (2 Terminals Required):
+
+TERMINAL 1 - Backend Server:
+----------------------------
+cd mage_battle
+start_server.bat
+
+Wait for: "Server running on http://localhost:3000"
+
+
+TERMINAL 2 - Frontend:
+----------------------
+cd mage_battle
+start_frontend.bat
+
+Browser will open at: http://localhost:3001
+
+
+HOW TO PLAY WITH 4 PLAYERS:
+----------------------------
+1. Player 1: Create game, select character
+2. Players 2-4: Open NEW TABS, select their characters
+3. Take turns: Allocate → Attack → Draw
+
+
+CONTROLS:
+---------
+Phase 1: Click attribute button (火木雷水風毒)
+Phase 2: Select enemy, choose attack
+Phase 3: Click "抽一張卡"
+
+
+WIN CONDITION:
+--------------
+Defeat both players on opposing team
+Team A (P1 & P3) vs Team B (P2 & P4)
+
+
+DOCS:
+-----
+QUICKSTART.md  - Detailed setup instructions
+MVP_READY.md   - Feature list and testing guide
+README.md      - Full documentation
+
+
+NEED HELP?
+----------
+- Backend not starting? Run: cargo clean && cargo build --release
+- Frontend not starting? Run: cd frontend && npm install
+- Port conflict? Check if 3000/3001 are already in use
+
+========================================
+Enjoy the game!
+========================================
