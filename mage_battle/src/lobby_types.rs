@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use crate::character::CharacterType;
-use crate::lobby::{GameRoom, PlayerSlot, RoomState};
+use crate::lobby::{GameRoom, PlayerSlot, RoomState, Team};
 
 /// 創建房間請求
 #[derive(Debug, Deserialize)]
@@ -43,6 +43,13 @@ pub struct LeaveRoomRequest {
 pub struct SelectCharacterRequest {
     pub connection_id: String,
     pub character: CharacterType,
+}
+
+/// 選擇隊伍請求
+#[derive(Debug, Deserialize)]
+pub struct SelectTeamRequest {
+    pub connection_id: String,
+    pub team: Team,
 }
 
 /// 準備請求
@@ -98,6 +105,7 @@ pub struct PlayerSlotDto {
     pub player_name: Option<String>,
     pub character: Option<String>,
     pub character_title: Option<String>,
+    pub team: Option<String>,
     pub is_ready: bool,
     pub is_occupied: bool,
 }
@@ -109,6 +117,7 @@ impl From<&PlayerSlot> for PlayerSlotDto {
             player_name: slot.player_name.clone(),
             character: slot.character.as_ref().map(|c| format!("{:?}", c)),
             character_title: slot.character.as_ref().map(|c| c.title().to_string()),
+            team: slot.team.as_ref().map(|t| format!("{:?}", t)),
             is_ready: slot.is_ready,
             is_occupied: slot.is_occupied(),
         }

@@ -1,0 +1,30 @@
+   0.440395000s  INFO prepare_target{force=false package_id=mage_battle v0.1.0 (C:\Users\Charlie\Github\MageWebsite\mage_battle) target="mage_battle"}: cargo::core::compiler::fingerprint: fingerprint error for mage_battle v0.1.0 (C:\Users\Charlie\Github\MageWebsite\mage_battle)/Check { test: true }/TargetInner { name: "mage_battle", doc: true, ..: with_path("C:\\Users\\Charlie\\Github\\MageWebsite\\mage_battle\\src\\main.rs", Edition2021) }
+   0.440433100s  INFO prepare_target{force=false package_id=mage_battle v0.1.0 (C:\Users\Charlie\Github\MageWebsite\mage_battle) target="mage_battle"}: cargo::core::compiler::fingerprint:     err: failed to read `C:\Users\Charlie\Github\MageWebsite\mage_battle\target\debug\.fingerprint\mage_battle-e1e502da8beb2ec7\test-bin-mage_battle`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_path
+   6: git_filter_source_path
+   7: git_filter_source_path
+   8: git_filter_source_path
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+    Checking mage_battle v0.1.0 (C:\Users\Charlie\Github\MageWebsite\mage_battle)
+error: could not compile `mage_battle` (bin "mage_battle" test) due to 3 previous errors; 15 warnings emitted

@@ -6,12 +6,22 @@ use serde::{Deserialize, Serialize};
 /// 房間代碼（6位數字）
 pub type RoomCode = String;
 
+/// 隊伍選擇
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Team {
+    A,
+    B,
+    C,
+    D,
+}
+
 /// 玩家槽位狀態
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlayerSlot {
-    pub slot_id: usize,  // 0-3
+    pub slot_id: usize,
     pub player_name: Option<String>,
     pub character: Option<CharacterType>,
+    pub team: Option<Team>,  // 隊伍選擇
     pub is_ready: bool,
     pub connection_id: Option<String>,  // 用於追蹤連接
 }
@@ -22,6 +32,7 @@ impl PlayerSlot {
             slot_id,
             player_name: None,
             character: None,
+            team: None,
             is_ready: false,
             connection_id: None,
         }
@@ -109,10 +120,27 @@ impl GameRoom {
         let slot = &mut self.player_slots[slot_id];
         slot.player_name = None;
         slot.character = None;
+        slot.team = None;
         slot.is_ready = false;
         slot.connection_id = None;
 
         // 更新房間狀態
+        self.update_state();
+
+        Ok(())
+    }
+
+    /// 選擇隊伍
+    pub fn select_team(&mut self, slot_id: usize, team: Team) -> Result<(), String> {
+        if slot_id >= self.player_slots.len() {
+            return Err("無效的槽位ID".to_string());
+        }
+
+        if self.player_slots[slot_id].is_empty() {
+            return Err("槽位未被占用".to_string());
+        }
+
+        self.player_slots[slot_id].team = Some(team);
         self.update_state();
 
         Ok(())
@@ -157,6 +185,10 @@ impl GameRoom {
             return Err("請先選擇角色".to_string());
         }
 
+        if slot.team.is_none() {
+            return Err("請先選擇隊伍".to_string());
+        }
+
         slot.is_ready = ready;
         self.update_state();
 
@@ -165,8 +197,25 @@ impl GameRoom {
 
     /// 檢查是否可以開始遊戲
     pub fn can_start_game(&self) -> bool {
-        // 必須4人都在且都準備好
-        self.player_slots.iter().all(|s| s.is_occupied() && s.character.is_some() && s.is_ready)
+        // 獲取所有已占用且準備好的槽位
+        let ready_players: Vec<&PlayerSlot> = self.player_slots.iter()
+            .filter(|s| s.is_occupied() && s.character.is_some() && s.team.is_some() && s.is_ready)
+            .collect();
+
+        // 至少需要2個玩家
+        if ready_players.len() < 2 {
+            return false;
+        }
+
+        // 需要至少2個不同的隊伍
+        let mut teams = std::collections::HashSet::new();
+        for player in &ready_players {
+            if let Some(team) = player.team {
+                teams.insert(team);
+            }
+        }
+
+        teams.len() >= 2
     }
 
     /// 更新房間狀態
@@ -215,9 +264,12 @@ impl GameRoom {
         let mut names = Vec::new();
         let mut characters = Vec::new();
 
+        // 只包含已占用、已選角色、已選隊伍且準備好的玩家
         for slot in &self.player_slots {
-            names.push(slot.player_name.clone().unwrap());
-            characters.push(slot.character.unwrap());
+            if slot.is_occupied() && slot.character.is_some() && slot.team.is_some() && slot.is_ready {
+                names.push(slot.player_name.clone().unwrap());
+                characters.push(slot.character.unwrap());
+            }
         }
 
         Ok((names, characters))

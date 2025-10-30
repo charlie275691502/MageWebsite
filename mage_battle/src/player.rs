@@ -309,13 +309,13 @@ impl Player {
     }
 
     /// 獲取右側玩家ID
-    pub fn right_player_id(&self) -> PlayerId {
-        (self.id + 1) % 4
+    pub fn right_player_id(&self, total_players: usize) -> PlayerId {
+        (self.id + 1) % total_players
     }
 
     /// 獲取左側玩家ID
-    pub fn left_player_id(&self) -> PlayerId {
-        (self.id + 3) % 4
+    pub fn left_player_id(&self, total_players: usize) -> PlayerId {
+        (self.id + total_players - 1) % total_players
     }
 
     /// 獲取隊友ID

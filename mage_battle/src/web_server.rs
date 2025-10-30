@@ -17,7 +17,7 @@ use crate::game::Game;
 use crate::lobby::{GameRoom, RoomCode};
 use crate::lobby_types::{
     CreateRoomRequest, CreateRoomResponse, JoinRoomRequest, JoinRoomResponse,
-    LeaveRoomRequest, SelectCharacterRequest, ReadyRequest, StartGameRequest,
+    LeaveRoomRequest, SelectCharacterRequest, SelectTeamRequest, ReadyRequest, StartGameRequest,
     StartGameResponse, RoomDto,
 };
 
@@ -80,6 +80,7 @@ pub fn create_router() -> Router {
         .route("/api/lobby/join", post(join_lobby_room))
         .route("/api/lobby/:room_code", get(get_lobby_room))
         .route("/api/lobby/:room_code/character", post(select_character_in_lobby))
+        .route("/api/lobby/:room_code/team", post(select_team_in_lobby))
         .route("/api/lobby/:room_code/ready", post(set_ready_in_lobby))
         .route("/api/lobby/:room_code/start", post(start_game_from_lobby))
         .route("/api/lobby/:room_code/leave", post(leave_lobby_room))
@@ -285,6 +286,49 @@ async fn select_character_in_lobby(
 
         if let Some(slot_id) = room.find_slot_by_connection(&req.connection_id) {
             match room.select_character(slot_id, req.character) {
+                Ok(_) => {
+                    let response: RoomDto = (&*room).into();
+                    (StatusCode::OK, Json(ApiResponse::ok(response)))
+                }
+                Err(e) => (
+                    StatusCode::BAD_REQUEST,
+                    Json(ApiResponse::<RoomDto>::error(
+                        "SELECT_FAILED".to_string(),
+                        e,
+                    )),
+                ),
+            }
+        } else {
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(ApiResponse::<RoomDto>::error(
+                    "INVALID_CONNECTION".to_string(),
+                    "無效的連接ID".to_string(),
+                )),
+            )
+        }
+    } else {
+        (
+            StatusCode::NOT_FOUND,
+            Json(ApiResponse::<RoomDto>::error(
+                "ROOM_NOT_FOUND".to_string(),
+                "房間不存在".to_string(),
+            )),
+        )
+    }
+}
+
+/// 選擇隊伍
+async fn select_team_in_lobby(
+    State(store): State<AppState>,
+    Path(room_code): Path<String>,
+    Json(req): Json<SelectTeamRequest>,
+) -> impl IntoResponse {
+    if let Some(room_mutex) = store.get_room(&room_code) {
+        let mut room = room_mutex.lock().await;
+
+        if let Some(slot_id) = room.find_slot_by_connection(&req.connection_id) {
+            match room.select_team(slot_id, req.team) {
                 Ok(_) => {
                     let response: RoomDto = (&*room).into();
                     (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -571,7 +615,7 @@ async fn play_attribute_bolt(
         match game.play_attribute_bolt(req.card_id, attr_type) {
             Ok(_) => {
                 let current_id = game.current_player_index;
-                let target_id = game.players[current_id].left_player_id();
+                let target_id = game.players[current_id].left_player_id(game.players.len());
                 let result = ActionResultDto {
                     success: true,
                     message: format!("使用{}屬性彈攻擊前一位玩家", attr_type.to_string()),

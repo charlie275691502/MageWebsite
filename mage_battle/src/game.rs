@@ -38,8 +38,10 @@ pub struct Game {
 
 impl Game {
     pub fn new(player_names: Vec<String>, characters: Vec<CharacterType>) -> Self {
-        assert_eq!(player_names.len(), 4);
-        assert_eq!(characters.len(), 4);
+        assert!(player_names.len() >= 2 && player_names.len() <= 4,
+                "Game requires 2-4 players, got {}", player_names.len());
+        assert_eq!(player_names.len(), characters.len(),
+                   "Player names and characters count mismatch");
 
         let mut players = Vec::new();
         for (i, (name, char_type)) in player_names.iter().zip(characters.iter()).enumerate() {
@@ -95,7 +97,7 @@ impl Game {
 
     /// 進入下一位玩家
     fn next_player(&mut self) {
-        self.current_player_index = (self.current_player_index + 1) % 4;
+        self.current_player_index = (self.current_player_index + 1) % self.players.len();
 
         // 檢查是否新的一輪
         if self.current_player_index == 0 {
@@ -196,7 +198,7 @@ impl Game {
         }
 
         // 屬性彈只能攻擊前一位玩家（左側）
-        let target_id = self.players[current_id].left_player_id();
+        let target_id = self.players[current_id].left_player_id(self.players.len());
 
         // 檢查目標是否存活
         if self.players[target_id].is_dead {

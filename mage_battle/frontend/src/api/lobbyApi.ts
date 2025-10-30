@@ -15,6 +15,7 @@ export interface PlayerSlotDto {
   player_name?: string;
   character?: string;
   character_title?: string;
+  team?: string;  // 'A', 'B', 'C', or 'D'
   is_ready: boolean;
   is_occupied: boolean;
 }
@@ -84,6 +85,17 @@ class LobbyApi {
     return this.request<RoomDto>(`/lobby/${roomCode}/character`, {
       method: 'POST',
       body: JSON.stringify({ connection_id: connectionId, character }),
+    });
+  }
+
+  async selectTeam(
+    roomCode: string,
+    connectionId: string,
+    team: string  // 'A', 'B', 'C', or 'D'
+  ): Promise<RoomDto> {
+    return this.request<RoomDto>(`/lobby/${roomCode}/team`, {
+      method: 'POST',
+      body: JSON.stringify({ connection_id: connectionId, team }),
     });
   }
 
