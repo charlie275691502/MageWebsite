@@ -150,6 +150,7 @@ async fn create_game(
             turn_number: game.turn_number,
             turn_phase: format!("{:?}", game.turn_phase),
             players: game.players.iter().map(|p| p.into()).collect(),
+            deck_remaining: game.deck.len(),
         };
         (StatusCode::OK, Json(ApiResponse::ok(response)))
     } else {
@@ -177,6 +178,7 @@ async fn get_game_info(
             turn_number: game.turn_number,
             turn_phase: format!("{:?}", game.turn_phase),
             players: game.players.iter().map(|p| p.into()).collect(),
+            deck_remaining: game.deck.len(),
         };
         (StatusCode::OK, Json(ApiResponse::ok(response)))
     } else {

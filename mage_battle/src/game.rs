@@ -208,13 +208,46 @@ impl Game {
         let bolt = AttributeBolt::new(attr_type, level);
         let mut damage = bolt.base_damage();
 
-        // 火Lv3效果：所有屬性彈+1
-        if self.players[current_id].attributes.fire >= 3 {
+        // 屬性彈也有屬性附魔，應用專精加成
+        let caster_fire = self.players[current_id].attributes.fire;
+        let caster_thunder = self.players[current_id].attributes.thunder;
+        let caster_wood = self.players[current_id].attributes.wood;
+
+        // 木Lv3專精：使用木屬性彈時，減少1點生命並獲得1點護盾
+        if attr_type == AttributeType::Wood && caster_wood >= 3 {
+            self.players[current_id].take_damage(1);
+            self.players[current_id].shield += 1;
+        }
+
+        // 火Lv3: 所有屬性彈+1
+        if caster_fire >= 3 {
             damage += 1;
         }
 
+        // 雷屬性專精
+        if attr_type == AttributeType::Thunder {
+            // 雷Lv3: 雷屬性卡片傷害+1
+            if caster_thunder >= 3 {
+                damage += 1;
+            }
+            // 雷Lv5: 雷屬性卡片傷害+2 (合計+3)
+            if caster_thunder >= 5 {
+                damage += 2;
+            }
+        }
+
+        // 檢查目標的木屬性專精
+        let damage_reduction = if self.players[target_id].attributes.wood >= 5 {
+            // 木Lv5: 自己與隊友受到的卡片傷害-1
+            1
+        } else {
+            0
+        };
+
+        let final_damage = damage.saturating_sub(damage_reduction);
+
         // 對目標造成傷害
-        self.players[target_id].take_damage(damage);
+        self.players[target_id].take_damage(final_damage);
 
         self.turn_phase = TurnPhase::DrawCard;
         Ok(())
@@ -251,13 +284,12 @@ impl Game {
             return Err("打出卡片失敗".to_string());
         }
 
-        // 執行效果
-        // TODO: 實現完整的效果執行邏輯
-        // let spell = match side {
-        //     CardSide::Top => &card.top_spell,
-        //     CardSide::Bottom => card.bottom_spell.as_ref().unwrap(),
-        // };
-        // self.execute_spell_effect(spell, targets)?;
+        // 執行效果（clone spell 以避免借用衝突）
+        let spell = match side {
+            CardSide::Top => card.top_spell.clone(),
+            CardSide::Bottom => card.bottom_spell.as_ref().unwrap().clone(),
+        };
+        self.execute_spell_effect(current_id, &spell, targets)?;
 
         self.turn_phase = TurnPhase::DrawCard;
         Ok(())
@@ -342,6 +374,208 @@ impl Game {
 
         self.turn_phase = TurnPhase::TurnEnd;
         self.handle_turn_end();
+
+        Ok(())
+    }
+
+    /// 執行法術效果（包含屬性專精加成）
+    fn execute_spell_effect(
+        &mut self,
+        caster_id: PlayerId,
+        spell: &crate::card::SpellSide,
+        targets: Vec<PlayerId>,
+    ) -> Result<(), String> {
+        // 獲取法術的所有屬性需求
+        let enchantments: Vec<AttributeType> = spell
+            .requirements
+            .iter()
+            .map(|(attr, _)| *attr)
+            .collect();
+
+        // 木Lv3專精：使用木屬性法術時，減少1點生命並獲得1點護盾
+        let has_wood = enchantments.contains(&AttributeType::Wood);
+        let caster_wood = self.players[caster_id].attributes.wood;
+        if has_wood && caster_wood >= 3 {
+            self.players[caster_id].take_damage(1);
+            self.players[caster_id].shield += 1;
+        }
+
+        // 執行 effect1
+        self.apply_effect(caster_id, &spell.effect.effect1, &targets, &enchantments)?;
+
+        // 執行 effect2（如果存在）
+        if let Some(effect2) = &spell.effect.effect2 {
+            self.apply_effect(caster_id, effect2, &targets, &enchantments)?;
+        }
+
+        Ok(())
+    }
+
+    /// 應用單個效果
+    fn apply_effect(
+        &mut self,
+        caster_id: PlayerId,
+        effect: &EffectType,
+        targets: &[PlayerId],
+        enchantments: &[AttributeType],
+    ) -> Result<(), String> {
+        let caster_attrs = &self.players[caster_id].attributes;
+
+        match effect {
+            EffectType::Damage(base_damage) => {
+                self.apply_damage_effect(caster_id, *base_damage, targets, enchantments)
+            }
+            EffectType::IncreaseDamage(bonus) => {
+                // 造成屬性等級+N點傷害
+                // 使用主要屬性等級（需求最高的屬性）
+                let main_attr_level = enchantments
+                    .iter()
+                    .map(|attr| caster_attrs.get(*attr) as u32)
+                    .max()
+                    .unwrap_or(0);
+                let total_damage = main_attr_level + bonus;
+                self.apply_damage_effect(caster_id, total_damage, targets, enchantments)
+            }
+            EffectType::Heal(amount) => {
+                self.apply_heal_effect(caster_id, *amount, targets, enchantments)
+            }
+            EffectType::HealSelf(amount) => {
+                self.apply_heal_effect(caster_id, *amount, &[caster_id], enchantments)
+            }
+            EffectType::Shield(amount) => {
+                self.apply_shield_effect(caster_id, *amount, targets, enchantments)
+            }
+            EffectType::ShieldSelf(amount) => {
+                self.apply_shield_effect(caster_id, *amount, &[caster_id], enchantments)
+            }
+            _ => {
+                // 其他效果類型尚未實現
+                Ok(())
+            }
+        }
+    }
+
+    /// 應用傷害效果（包含屬性專精加成）
+    fn apply_damage_effect(
+        &mut self,
+        caster_id: PlayerId,
+        mut base_damage: u32,
+        targets: &[PlayerId],
+        enchantments: &[AttributeType],
+    ) -> Result<(), String> {
+        // 複製施法者的屬性值以避免借用衝突
+        let caster_fire = self.players[caster_id].attributes.fire;
+        let caster_thunder = self.players[caster_id].attributes.thunder;
+
+        // 應用屬性專精加成
+        for attr in enchantments {
+            match attr {
+                AttributeType::Fire => {
+                    // 火Lv3: 所有屬性彈+1 (也適用於火屬性法術)
+                    if caster_fire >= 3 {
+                        base_damage += 1;
+                    }
+                }
+                AttributeType::Thunder => {
+                    // 雷Lv3: 雷屬性卡片傷害+1
+                    if caster_thunder >= 3 {
+                        base_damage += 1;
+                    }
+                    // 雷Lv5: 雷屬性卡片傷害+2 (合計+3)
+                    if caster_thunder >= 5 {
+                        base_damage += 2;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // 對每個目標造成傷害
+        for &target_id in targets {
+            if target_id >= self.players.len() {
+                continue;
+            }
+
+            // 檢查目標的木屬性專精
+            let damage_reduction = if self.players[target_id].attributes.wood >= 5 {
+                // 木Lv5: 自己與隊友受到的卡片傷害-1
+                1
+            } else {
+                0
+            };
+
+            let final_damage = base_damage.saturating_sub(damage_reduction);
+
+            if self.players[target_id].is_dead {
+                continue;
+            }
+
+            self.players[target_id].take_damage(final_damage);
+        }
+
+        Ok(())
+    }
+
+    /// 應用治療效果（包含屬性專精加成）
+    fn apply_heal_effect(
+        &mut self,
+        caster_id: PlayerId,
+        heal_amount: u32,
+        targets: &[PlayerId],
+        enchantments: &[AttributeType],
+    ) -> Result<(), String> {
+        // 複製施法者的屬性值以避免借用衝突
+        let caster_water = self.players[caster_id].attributes.water;
+        let teammate_id = self.players[caster_id].teammate_id();
+
+        // 檢查是否有水屬性附魔
+        let has_water = enchantments.contains(&AttributeType::Water);
+
+        // 應用治療
+        for &target_id in targets {
+            if target_id >= self.players.len() {
+                continue;
+            }
+
+            let mut actual_heal = heal_amount;
+
+            // 水Lv3: 使用水屬卡片時，回復自身1點生命
+            if has_water && caster_water >= 3 && target_id == caster_id {
+                actual_heal += 1;
+            }
+
+            self.players[target_id].heal(actual_heal);
+        }
+
+        // 水Lv5: 使用水屬卡片時，回復自己與隊友1點生命
+        if has_water && caster_water >= 5 && teammate_id < self.players.len() {
+            // 如果隊友不在目標列表中，額外回復
+            if !targets.contains(&teammate_id) {
+                self.players[teammate_id].heal(1);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// 應用護盾效果
+    fn apply_shield_effect(
+        &mut self,
+        caster_id: PlayerId,
+        shield_amount: u32,
+        targets: &[PlayerId],
+        _enchantments: &[AttributeType],
+    ) -> Result<(), String> {
+        // 木Lv3專精已在execute_spell_effect中處理
+
+        // 應用護盾
+        for &target_id in targets {
+            if target_id >= self.players.len() {
+                continue;
+            }
+
+            self.players[target_id].shield += shield_amount;
+        }
 
         Ok(())
     }

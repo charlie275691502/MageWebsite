@@ -58,6 +58,7 @@ pub struct GameInfoResponse {
     pub turn_number: u32,
     pub turn_phase: String,
     pub players: Vec<PlayerDto>,
+    pub deck_remaining: usize,  // 共享牌庫剩餘卡片數
 }
 
 /// 玩家DTO

@@ -1,5 +1,11 @@
-   0.440395000s  INFO prepare_target{force=false package_id=mage_battle v0.1.0 (C:\Users\Charlie\Github\MageWebsite\mage_battle) target="mage_battle"}: cargo::core::compiler::fingerprint: fingerprint error for mage_battle v0.1.0 (C:\Users\Charlie\Github\MageWebsite\mage_battle)/Check { test: true }/TargetInner { name: "mage_battle", doc: true, ..: with_path("C:\\Users\\Charlie\\Github\\MageWebsite\\mage_battle\\src\\main.rs", Edition2021) }
-   0.440433100s  INFO prepare_target{force=false package_id=mage_battle v0.1.0 (C:\Users\Charlie\Github\MageWebsite\mage_battle) target="mage_battle"}: cargo::core::compiler::fingerprint:     err: failed to read `C:\Users\Charlie\Github\MageWebsite\mage_battle\target\debug\.fingerprint\mage_battle-e1e502da8beb2ec7\test-bin-mage_battle`
+    Blocking waiting for file lock on build directory
+  10.294287700s  INFO prepare_target{force=false package_id=mage_battle v0.1.0 (C:\Users\Charlie\Github\MageWebsite\mage_battle) target="mage_battle"}: cargo::core::compiler::fingerprint: stale: changed "C:\\Users\\Charlie\\Github\\MageWebsite\\mage_battle\\src\\game.rs"
+  10.294312500s  INFO prepare_target{force=false package_id=mage_battle v0.1.0 (C:\Users\Charlie\Github\MageWebsite\mage_battle) target="mage_battle"}: cargo::core::compiler::fingerprint:           (vs) "C:\\Users\\Charlie\\Github\\MageWebsite\\mage_battle\\target\\debug\\.fingerprint\\mage_battle-b98453a7583e42a9\\dep-bin-mage_battle"
+  10.294318900s  INFO prepare_target{force=false package_id=mage_battle v0.1.0 (C:\Users\Charlie\Github\MageWebsite\mage_battle) target="mage_battle"}: cargo::core::compiler::fingerprint:                FileTime { seconds: 13406275171, nanos: 53204300 } < FileTime { seconds: 13406297671, nanos: 885924100 }
+  10.294576600s  INFO prepare_target{force=false package_id=mage_battle v0.1.0 (C:\Users\Charlie\Github\MageWebsite\mage_battle) target="mage_battle"}: cargo::core::compiler::fingerprint: fingerprint dirty for mage_battle v0.1.0 (C:\Users\Charlie\Github\MageWebsite\mage_battle)/Check { test: false }/TargetInner { name: "mage_battle", doc: true, ..: with_path("C:\\Users\\Charlie\\Github\\MageWebsite\\mage_battle\\src\\main.rs", Edition2021) }
+  10.294595700s  INFO prepare_target{force=false package_id=mage_battle v0.1.0 (C:\Users\Charlie\Github\MageWebsite\mage_battle) target="mage_battle"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleItem(ChangedFile { reference: "C:\\Users\\Charlie\\Github\\MageWebsite\\mage_battle\\target\\debug\\.fingerprint\\mage_battle-b98453a7583e42a9\\dep-bin-mage_battle", reference_mtime: FileTime { seconds: 13406275171, nanos: 53204300 }, stale: "C:\\Users\\Charlie\\Github\\MageWebsite\\mage_battle\\src\\game.rs", stale_mtime: FileTime { seconds: 13406297671, nanos: 885924100 } }))
+  10.314154300s  INFO prepare_target{force=false package_id=mage_battle v0.1.0 (C:\Users\Charlie\Github\MageWebsite\mage_battle) target="mage_battle"}: cargo::core::compiler::fingerprint: fingerprint error for mage_battle v0.1.0 (C:\Users\Charlie\Github\MageWebsite\mage_battle)/Check { test: true }/TargetInner { name: "mage_battle", doc: true, ..: with_path("C:\\Users\\Charlie\\Github\\MageWebsite\\mage_battle\\src\\main.rs", Edition2021) }
+  10.314176700s  INFO prepare_target{force=false package_id=mage_battle v0.1.0 (C:\Users\Charlie\Github\MageWebsite\mage_battle) target="mage_battle"}: cargo::core::compiler::fingerprint:     err: failed to read `C:\Users\Charlie\Github\MageWebsite\mage_battle\target\debug\.fingerprint\mage_battle-e1e502da8beb2ec7\test-bin-mage_battle`
 
 Caused by:
     The system cannot find the file specified. (os error 2)
@@ -27,4 +33,6 @@ Stack backtrace:
   19: BaseThreadInitThunk
   20: RtlUserThreadStart
     Checking mage_battle v0.1.0 (C:\Users\Charlie\Github\MageWebsite\mage_battle)
-error: could not compile `mage_battle` (bin "mage_battle" test) due to 3 previous errors; 15 warnings emitted
+error: could not compile `mage_battle` (bin "mage_battle") due to 3 previous errors; 16 warnings emitted
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `mage_battle` (bin "mage_battle" test) due to 6 previous errors; 15 warnings emitted

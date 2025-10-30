@@ -129,7 +129,7 @@ impl AttributeBolt {
         }
     }
 
-    /// 獲取基礎傷害
+    /// 獲取基礎傷害（等於屬性等級）
     pub fn base_damage(&self) -> u32 {
         self.level as u32
     }

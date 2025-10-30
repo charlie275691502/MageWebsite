@@ -54,6 +54,7 @@ export interface GameInfo {
   turn_number: number;
   turn_phase: string;
   players: Player[];
+  deck_remaining: number;
 }
 
 export interface ActionResult {

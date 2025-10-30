@@ -1758,6 +1758,7 @@
   margin-bottom: 0.75rem;
   overflow: visible;
   position: relative;
+  z-index: 1;
 }
 
 .attr-inline {
@@ -1771,6 +1772,11 @@
   transition: all 0.2s ease;
   position: relative;
   cursor: default;
+  z-index: 1;
+}
+
+.attr-inline:hover {
+  z-index: 10000;
 }
 
 .attr-inline.clickable {
@@ -1805,7 +1811,7 @@
   padding: 0.75rem;
   min-width: 250px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 9999;
+  z-index: 99999;
   text-align: left;
   pointer-events: none;
 }

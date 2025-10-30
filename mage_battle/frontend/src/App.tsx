@@ -99,12 +99,27 @@ const checkSpellRequirement = (
   });
 };
 
-// Helper function to calculate damage from spell effect
+// Helper function to extract enchantments from cost string
+const extractEnchantments = (cost: string): string[] => {
+  const pattern = /([火木雷水風毒])\d+/g;
+  const matches = Array.from(cost.matchAll(pattern));
+  return matches
+    .map((match) => {
+      const attrChar = match[1];
+      const attrType = attributeNamesReverse[attrChar];
+      return attrType?.toLowerCase() || "";
+    })
+    .filter(Boolean);
+};
+
+// Helper function to calculate damage from spell effect with proficiency bonuses
 const calculateSpellDamage = (
   effect: string,
   playerAttributes: any,
   cost: string
 ): number => {
+  let baseDamage = 0;
+
   // Try to extract damage from effect text
   // Patterns: "造成5點傷害", "6點傷害", "造成屬性等級＋２點傷害"
 
@@ -129,11 +144,10 @@ const calculateSpellDamage = (
       .split("")
       .map((c) => fullWidthMap[c] || c)
       .join("");
-    return parseInt(normalizedDamage);
+    baseDamage = parseInt(normalizedDamage);
   }
-
   // Check for attribute level based damage like "屬性等級＋２點傷害"
-  if (effect.includes("屬性等級")) {
+  else if (effect.includes("屬性等級")) {
     // Extract the attribute from cost (first attribute mentioned)
     const attrMatch = cost.match(/([火木雷水風毒])/);
     if (attrMatch) {
@@ -147,12 +161,30 @@ const calculateSpellDamage = (
         // Extract the bonus (like "＋２")
         const bonusMatch = effect.match(/＋(\d+)/);
         const bonus = bonusMatch ? parseInt(bonusMatch[1]) : 0;
-        return attrLevel + bonus;
+        baseDamage = attrLevel + bonus;
       }
     }
   }
 
-  return 0; // Unknown damage pattern
+  // Apply proficiency bonuses based on spell enchantments
+  const enchantments = extractEnchantments(cost);
+
+  // Fire Lv3: All damage spells +1
+  if (enchantments.includes("fire") && playerAttributes.fire >= 3) {
+    baseDamage += 1;
+  }
+
+  // Thunder proficiency
+  if (enchantments.includes("thunder")) {
+    if (playerAttributes.thunder >= 3) {
+      baseDamage += 1;
+    }
+    if (playerAttributes.thunder >= 5) {
+      baseDamage += 2;
+    }
+  }
+
+  return baseDamage; // Unknown damage pattern if baseDamage is still 0
 };
 
 // Random username generator for testing
@@ -257,6 +289,7 @@ function App() {
       if (info.game_id) {
         setGameId(info.game_id);
         localStorage.setItem("mage_game_id", info.game_id);
+        setGameLog([]); // Clear logs when game starts
         setScreen("game");
       }
 
@@ -298,7 +331,6 @@ function App() {
           });
 
         if (hasStateChanged) {
-          const timestamp = new Date().toLocaleTimeString();
           const newLogs: string[] = [];
 
           // Determine who acted (the player whose turn just finished)
@@ -314,13 +346,35 @@ function App() {
               previousGameInfo.players[previousGameInfo.current_player_index];
           }
 
-          // Check for attribute changes first (these happen before damage)
-          // NOTE: Attribute allocation logs are removed per user request
+          // Check for attribute changes and log allocations
           info.players.forEach((player, idx) => {
             const prevPlayer = previousGameInfo.players[idx];
 
-            // Check for attribute changes (but don't log them)
-            // Kept for future use if needed
+            // Check for attribute changes
+            const attrTypes: Array<keyof typeof player.attributes> = [
+              "fire",
+              "wood",
+              "thunder",
+              "water",
+              "wind",
+              "poison",
+            ];
+            attrTypes.forEach((attr) => {
+              if (prevPlayer.attributes[attr] !== player.attributes[attr]) {
+                const change =
+                  player.attributes[attr] - prevPlayer.attributes[attr];
+                if (change > 0) {
+                  const attrName =
+                    attributeNames[
+                      (attr.charAt(0).toUpperCase() +
+                        attr.slice(1)) as AttributeType
+                    ];
+                  newLogs.push(
+                    `${player.name} allocated ${change} point(s) to ${attrName}`
+                  );
+                }
+              }
+            });
           });
 
           // Check for HP/shield changes (damage/healing)
@@ -337,23 +391,21 @@ function App() {
               ) {
                 // Damage dealt by another player
                 newLogs.push(
-                  `[${timestamp}] ${actingPlayer.name} dealt ${Math.abs(
-                    hpChange
-                  )} damage to ${player.name} (${prevPlayer.hp} → ${
-                    player.hp
-                  } HP)`
+                  `${actingPlayer.name} dealt ${Math.abs(hpChange)} damage to ${
+                    player.name
+                  } (${prevPlayer.hp} → ${player.hp} HP)`
                 );
               } else if (hpChange < 0) {
                 // Damage from unknown source
                 newLogs.push(
-                  `[${timestamp}] ${player.name} took ${Math.abs(
-                    hpChange
-                  )} damage (${prevPlayer.hp} → ${player.hp} HP)`
+                  `${player.name} took ${Math.abs(hpChange)} damage (${
+                    prevPlayer.hp
+                  } → ${player.hp} HP)`
                 );
               } else if (hpChange > 0) {
                 // Healing
                 newLogs.push(
-                  `[${timestamp}] ${player.name} healed ${hpChange} HP (${prevPlayer.hp} → ${player.hp} HP)`
+                  `${player.name} healed ${hpChange} HP (${prevPlayer.hp} → ${player.hp} HP)`
                 );
               }
             }
@@ -362,14 +414,10 @@ function App() {
             if (prevPlayer.shield !== player.shield) {
               const shieldChange = player.shield - prevPlayer.shield;
               if (shieldChange > 0) {
-                newLogs.push(
-                  `[${timestamp}] ${player.name} gained ${shieldChange} shield`
-                );
+                newLogs.push(`${player.name} gained ${shieldChange} shield`);
               } else if (shieldChange < 0) {
                 newLogs.push(
-                  `[${timestamp}] ${player.name} lost ${Math.abs(
-                    shieldChange
-                  )} shield`
+                  `${player.name} lost ${Math.abs(shieldChange)} shield`
                 );
               }
             }
@@ -383,9 +431,7 @@ function App() {
           ) {
             const currentPlayer = info.players[info.current_player_index];
             if (info.turn_phase === "AllocateAttribute") {
-              newLogs.push(
-                `[${timestamp}] === ${currentPlayer.name}'s turn ===`
-              );
+              newLogs.push(`=== ${currentPlayer.name}'s turn ===`);
             }
           }
 
@@ -545,6 +591,7 @@ function App() {
       setGameId(response.game_id);
       localStorage.setItem("mage_game_id", response.game_id);
 
+      setGameLog([]); // Clear logs when starting a new game
       setScreen("game");
       setError(null);
     } catch (err: any) {
@@ -1046,9 +1093,7 @@ function App() {
               當前: {currentPlayer.name}
             </span>
             <span>🗑️ 棄牌: {myPlayer.discard_pile_count}</span>
-            <span>
-              📚 牌庫: {60 - myPlayer.hand.length - myPlayer.discard_pile_count}
-            </span>
+            <span>📚 牌庫: {gameInfo.deck_remaining}</span>
           </div>
           <div className="header-actions">
             <button onClick={resetAll} className="btn-small btn-warning">
@@ -1561,10 +1606,19 @@ function App() {
                                     myPlayer.attributes,
                                     spell.cost
                                   );
+
+                                  // Calculate shield absorption and remaining damage
+                                  const shieldAbsorbed = Math.min(
+                                    damage,
+                                    player.shield
+                                  );
+                                  const damageToHP =
+                                    player.shield > 0 ? 0 : damage;
+                                  const newShield =
+                                    player.shield - shieldAbsorbed;
                                   const afterHP = Math.max(
                                     0,
-                                    player.hp -
-                                      Math.max(0, damage - player.shield)
+                                    player.hp - damageToHP
                                   );
 
                                   return (
@@ -1592,7 +1646,7 @@ function App() {
                                       <div className="target-stats">
                                         ❤️ {player.hp} → {afterHP}
                                         {player.shield > 0 &&
-                                          ` | 🛡️ ${player.shield}`}
+                                          ` | 🛡️ ${player.shield} → ${newShield}`}
                                       </div>
                                     </button>
                                   );
@@ -1636,7 +1690,7 @@ function App() {
                                     ]
                                   }
                                 </div>
-                                <div>傷害: 等級+2點</div>
+                                <div>基礎傷害: 等於屬性等級</div>
                               </div>
 
                               <div className="target-buttons-horizontal">
@@ -1646,16 +1700,46 @@ function App() {
                                     !player.is_dead &&
                                     player.id === furthestEnemy;
 
-                                  // Calculate damage for bolt: attribute level + 2
+                                  // Calculate damage for bolt: base = attribute level
                                   const attrLevel =
                                     myPlayer.attributes[
                                       selectedBoltAttr.toLowerCase() as keyof typeof myPlayer.attributes
                                     ];
-                                  const damage = attrLevel + 2;
+                                  let damage = attrLevel;
+
+                                  // Apply Fire Lv3 proficiency: all attribute bolts +1
+                                  if (myPlayer.attributes.fire >= 3) {
+                                    damage += 1;
+                                  }
+
+                                  // Apply Thunder proficiency if it's a thunder bolt
+                                  if (selectedBoltAttr === "Thunder") {
+                                    if (myPlayer.attributes.thunder >= 3) {
+                                      damage += 1;
+                                    }
+                                    if (myPlayer.attributes.thunder >= 5) {
+                                      damage += 2;
+                                    }
+                                  }
+
+                                  // Apply Wood Lv5 damage reduction for target
+                                  let finalDamage = damage;
+                                  if (player.attributes.wood >= 5) {
+                                    finalDamage = Math.max(0, damage - 1);
+                                  }
+
+                                  // Calculate shield absorption and remaining damage
+                                  const shieldAbsorbed = Math.min(
+                                    finalDamage,
+                                    player.shield
+                                  );
+                                  const damageToHP =
+                                    player.shield > 0 ? 0 : finalDamage;
+                                  const newShield =
+                                    player.shield - shieldAbsorbed;
                                   const afterHP = Math.max(
                                     0,
-                                    player.hp -
-                                      Math.max(0, damage - player.shield)
+                                    player.hp - damageToHP
                                   );
 
                                   return (
@@ -1681,7 +1765,7 @@ function App() {
                                       <div className="target-stats">
                                         ❤️ {player.hp} → {afterHP}
                                         {player.shield > 0 &&
-                                          ` | 🛡️ ${player.shield}`}
+                                          ` | 🛡️ ${player.shield} → ${newShield}`}
                                       </div>
                                     </button>
                                   );
