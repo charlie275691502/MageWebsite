@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { gameApi, GameInfo, ActionResult } from "./api/gameApi";
 import {
   lobbyApi,
@@ -37,6 +37,37 @@ const characterTypes = [
   { id: "WaterWind", name: "水風法師" },
 ];
 
+// Attribute proficiency info
+const attributeProficiency: Record<
+  string,
+  { level: number; description: string }[]
+> = {
+  fire: [
+    { level: 3, description: "所有屬性彈+1" },
+    { level: 5, description: "回合開始時，對所有敵人造成１點傷害" },
+  ],
+  wood: [
+    { level: 3, description: "減少１點生命並獲得１點護盾" },
+    { level: 5, description: "自己與隊友受到的卡片傷害-1" },
+  ],
+  thunder: [
+    { level: 3, description: "雷屬性卡片傷害+1" },
+    { level: 5, description: "雷屬性卡片傷害+2 (合計+3)" },
+  ],
+  water: [
+    { level: 3, description: "使用水屬卡片時，回復自身１的生命" },
+    { level: 5, description: "使用水屬卡片時，回復自己與隊友１點生命" },
+  ],
+  wind: [
+    { level: 2, description: "風屬性卡片攻擊的人這圈不能回復生命或獲得護盾" },
+    { level: 5, description: "風屬性卡片可自由選擇對象（不局限於攻擊右邊）" },
+  ],
+  poison: [
+    { level: 2, description: "被毒屬性卡片攻擊的人下回合先出卡片再配屬性點" },
+    { level: 5, description: "被毒屬性卡片攻擊的人下回合只能出屬性彈" },
+  ],
+};
+
 // Helper function to get card information
 const getCardInfo = (cardId: number) => {
   return cardData.find((card) => card.id === cardId);
@@ -55,7 +86,7 @@ const checkSpellRequirement = (
   if (matches.length === 0) return true; // If can't parse, assume it can be cast
 
   // Check ALL requirements must be met
-  return matches.every(match => {
+  return matches.every((match) => {
     const attrChar = match[1];
     const requiredLevel = parseInt(match[2]);
     const attrType = attributeNamesReverse[attrChar];
@@ -66,6 +97,62 @@ const checkSpellRequirement = (
       playerAttributes[attrType.toLowerCase() as keyof typeof playerAttributes];
     return playerAttrLevel >= requiredLevel;
   });
+};
+
+// Helper function to calculate damage from spell effect
+const calculateSpellDamage = (
+  effect: string,
+  playerAttributes: any,
+  cost: string
+): number => {
+  // Try to extract damage from effect text
+  // Patterns: "造成5點傷害", "6點傷害", "造成屬性等級＋２點傷害"
+
+  // First check for fixed damage like "5點傷害" or "６點傷害"
+  const fixedDamageMatch = effect.match(/(\d+|[０-９]+)點傷害/);
+  if (fixedDamageMatch) {
+    // Convert full-width numbers to regular numbers
+    const damageStr = fixedDamageMatch[1];
+    const fullWidthMap: Record<string, string> = {
+      "０": "0",
+      "１": "1",
+      "２": "2",
+      "３": "3",
+      "４": "4",
+      "５": "5",
+      "６": "6",
+      "７": "7",
+      "８": "8",
+      "９": "9",
+    };
+    const normalizedDamage = damageStr
+      .split("")
+      .map((c) => fullWidthMap[c] || c)
+      .join("");
+    return parseInt(normalizedDamage);
+  }
+
+  // Check for attribute level based damage like "屬性等級＋２點傷害"
+  if (effect.includes("屬性等級")) {
+    // Extract the attribute from cost (first attribute mentioned)
+    const attrMatch = cost.match(/([火木雷水風毒])/);
+    if (attrMatch) {
+      const attrChar = attrMatch[1];
+      const attrType = attributeNamesReverse[attrChar];
+      if (attrType) {
+        const attrLevel =
+          playerAttributes[
+            attrType.toLowerCase() as keyof typeof playerAttributes
+          ];
+        // Extract the bonus (like "＋２")
+        const bonusMatch = effect.match(/＋(\d+)/);
+        const bonus = bonusMatch ? parseInt(bonusMatch[1]) : 0;
+        return attrLevel + bonus;
+      }
+    }
+  }
+
+  return 0; // Unknown damage pattern
 };
 
 // Random username generator for testing
@@ -131,6 +218,7 @@ function App() {
     localStorage.getItem("mage_game_id")
   );
   const [gameInfo, setGameInfo] = useState<GameInfo | null>(null);
+  const previousGameInfoRef = useRef<GameInfo | null>(null);
 
   // Auto-refresh room info when in waiting room
   useEffect(() => {
@@ -182,6 +270,137 @@ function App() {
     if (!gameId) return;
     try {
       const info = await gameApi.getGameInfo(gameId);
+
+      // Detect changes and generate log messages
+      // Only process if there's been a meaningful state change
+      const previousGameInfo = previousGameInfoRef.current;
+
+      if (previousGameInfo) {
+        // Check if any significant state has changed
+        const hasStateChanged =
+          previousGameInfo.turn_number !== info.turn_number ||
+          previousGameInfo.turn_phase !== info.turn_phase ||
+          previousGameInfo.current_player_index !== info.current_player_index ||
+          // Also check if any player stats have changed
+          previousGameInfo.players.some((prevPlayer, idx) => {
+            const player = info.players[idx];
+            return (
+              prevPlayer.hp !== player.hp ||
+              prevPlayer.shield !== player.shield ||
+              Object.keys(prevPlayer.attributes).some(
+                (attr) =>
+                  prevPlayer.attributes[
+                    attr as keyof typeof prevPlayer.attributes
+                  ] !==
+                  player.attributes[attr as keyof typeof player.attributes]
+              )
+            );
+          });
+
+        if (hasStateChanged) {
+          const timestamp = new Date().toLocaleTimeString();
+          const newLogs: string[] = [];
+
+          // Determine who acted (the player whose turn just finished)
+          let actingPlayer: (typeof info.players)[0] | null = null;
+
+          // If turn or phase changed, the previous current player acted
+          if (
+            previousGameInfo.current_player_index !==
+              info.current_player_index ||
+            previousGameInfo.turn_phase !== info.turn_phase
+          ) {
+            actingPlayer =
+              previousGameInfo.players[previousGameInfo.current_player_index];
+          }
+
+          // Check for attribute changes first (these happen before damage)
+          // NOTE: Attribute allocation logs are removed per user request
+          info.players.forEach((player, idx) => {
+            const prevPlayer = previousGameInfo.players[idx];
+
+            // Check for attribute changes (but don't log them)
+            // Kept for future use if needed
+          });
+
+          // Check for HP/shield changes (damage/healing)
+          info.players.forEach((player, idx) => {
+            const prevPlayer = previousGameInfo.players[idx];
+
+            // HP changes
+            if (prevPlayer.hp !== player.hp) {
+              const hpChange = player.hp - prevPlayer.hp;
+              if (
+                hpChange < 0 &&
+                actingPlayer &&
+                actingPlayer.id !== player.id
+              ) {
+                // Damage dealt by another player
+                newLogs.push(
+                  `[${timestamp}] ${actingPlayer.name} dealt ${Math.abs(
+                    hpChange
+                  )} damage to ${player.name} (${prevPlayer.hp} → ${
+                    player.hp
+                  } HP)`
+                );
+              } else if (hpChange < 0) {
+                // Damage from unknown source
+                newLogs.push(
+                  `[${timestamp}] ${player.name} took ${Math.abs(
+                    hpChange
+                  )} damage (${prevPlayer.hp} → ${player.hp} HP)`
+                );
+              } else if (hpChange > 0) {
+                // Healing
+                newLogs.push(
+                  `[${timestamp}] ${player.name} healed ${hpChange} HP (${prevPlayer.hp} → ${player.hp} HP)`
+                );
+              }
+            }
+
+            // Shield changes
+            if (prevPlayer.shield !== player.shield) {
+              const shieldChange = player.shield - prevPlayer.shield;
+              if (shieldChange > 0) {
+                newLogs.push(
+                  `[${timestamp}] ${player.name} gained ${shieldChange} shield`
+                );
+              } else if (shieldChange < 0) {
+                newLogs.push(
+                  `[${timestamp}] ${player.name} lost ${Math.abs(
+                    shieldChange
+                  )} shield`
+                );
+              }
+            }
+          });
+
+          // Check for turn/phase changes
+          if (
+            previousGameInfo.current_player_index !==
+              info.current_player_index ||
+            previousGameInfo.turn_phase !== info.turn_phase
+          ) {
+            const currentPlayer = info.players[info.current_player_index];
+            if (info.turn_phase === "AllocateAttribute") {
+              newLogs.push(
+                `[${timestamp}] === ${currentPlayer.name}'s turn ===`
+              );
+            }
+          }
+
+          if (newLogs.length > 0) {
+            setGameLog((prev) => [...prev, ...newLogs]);
+          }
+
+          // Update ref immediately (synchronous)
+          previousGameInfoRef.current = info;
+        }
+      } else {
+        // First time loading, just set the previous state
+        previousGameInfoRef.current = info;
+      }
+
       setGameInfo(info);
       setError(null);
     } catch (err: any) {
@@ -378,8 +597,20 @@ function App() {
   const addLog = (result: ActionResult) => {
     const timestamp = new Date().toLocaleTimeString();
 
-    // If there's a message, add it directly
-    if (result.message && !result.message.includes('Drew card')) {
+    // Filter out specific message types
+    const shouldSkipMessage = (msg: string) => {
+      return (
+        msg.includes("Drew card") ||
+        msg.includes("抽卡") ||
+        msg.includes("allocated") ||
+        msg.includes("分配") ||
+        msg.includes("屬性彈") ||
+        msg.includes("Bolt")
+      );
+    };
+
+    // If there's a message, add it directly (unless filtered)
+    if (result.message && !shouldSkipMessage(result.message)) {
       setGameLog((prev) => [...prev, `[${timestamp}] ${result.message}`]);
     }
 
@@ -387,9 +618,14 @@ function App() {
     if (result.events && result.events.length > 0) {
       const newLogs: string[] = [];
 
-      result.events.forEach(event => {
-        // Skip draw card events
-        if (event.event_type === 'CardDrawn' || event.message?.includes('Drew card')) return;
+      result.events.forEach((event) => {
+        // Skip filtered event types
+        if (
+          event.event_type === "CardDrawn" ||
+          !event.message ||
+          shouldSkipMessage(event.message)
+        )
+          return;
 
         let message = event.message;
 
@@ -430,16 +666,27 @@ function App() {
     "top" | "bottom" | "bolt" | null
   >(null);
   const [selectedTargets, setSelectedTargets] = useState<number[]>([]);
-  const [selectedBoltAttr, setSelectedBoltAttr] = useState<AttributeType | null>(null);
+  const [selectedBoltAttr, setSelectedBoltAttr] =
+    useState<AttributeType | null>(null);
 
   // Card hover state for popup
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
 
+  // Attribute hover state for proficiency popup
+  const [hoveredAttribute, setHoveredAttribute] = useState<{
+    playerId: number;
+    attr: string;
+  } | null>(null);
+
   // Game log state
   const [gameLog, setGameLog] = useState<string[]>([]);
 
-  const playBoltWithCard = async (cardId: number, attr: AttributeType, targets: number[]) => {
+  const playBoltWithCard = async (
+    cardId: number,
+    attr: AttributeType,
+    targets: number[]
+  ) => {
     if (!gameId) return;
     try {
       setLoading(true);
@@ -814,8 +1061,17 @@ function App() {
 
         {/* Turn Phase Hint - Top of Game */}
         {isMyTurn && (
-          <div className={`turn-phase-hint-top turn-phase-${gameInfo.turn_phase.toLowerCase().replace(/[^a-z]/g, '')}`}>
-            你的回合: {gameInfo.turn_phase === 'AllocateAttribute' ? '請分配屬性點' : gameInfo.turn_phase === 'PlayCard' ? '請出牌' : '請抽牌'}
+          <div
+            className={`turn-phase-hint-top turn-phase-${gameInfo.turn_phase
+              .toLowerCase()
+              .replace(/[^a-z]/g, "")}`}
+          >
+            你的回合:{" "}
+            {gameInfo.turn_phase === "AllocateAttribute"
+              ? "請分配屬性點"
+              : gameInfo.turn_phase === "PlayCard"
+              ? "請出牌"
+              : "請抽牌"}
           </div>
         )}
 
@@ -849,9 +1105,7 @@ function App() {
                           </div>
                         </div>
                         <div className="hp-shield-inline">
-                          <span className="hp-text">
-                            ❤️ {player.hp}/{player.max_hp}
-                          </span>
+                          <span className="hp-text">❤️ {player.hp}</span>
                           {player.shield > 0 && (
                             <span className="shield-text">
                               | 🛡️ {player.shield}
@@ -882,6 +1136,15 @@ function App() {
                       ).map((attr) => {
                         const attrCap = (attr.charAt(0).toUpperCase() +
                           attr.slice(1)) as AttributeType;
+                        const attrLevel =
+                          player.attributes[
+                            attr as keyof typeof player.attributes
+                          ];
+                        const proficiencies = attributeProficiency[attr];
+                        const isHovered =
+                          hoveredAttribute?.playerId === player.id &&
+                          hoveredAttribute?.attr === attr;
+
                         return (
                           <div
                             key={attr}
@@ -889,6 +1152,10 @@ function App() {
                               canAllocate ? "clickable" : ""
                             }`}
                             onClick={() => canAllocate && allocateAttr(attrCap)}
+                            onMouseEnter={() =>
+                              setHoveredAttribute({ playerId: player.id, attr })
+                            }
+                            onMouseLeave={() => setHoveredAttribute(null)}
                             title={
                               canAllocate
                                 ? `點擊分配到${attributeNames[attrCap]}`
@@ -901,13 +1168,35 @@ function App() {
                             {attr === "water" && "💧"}
                             {attr === "wind" && "🌪️"}
                             {attr === "poison" && "☠️"}
-                            <span>
-                              {
-                                player.attributes[
-                                  attr as keyof typeof player.attributes
-                                ]
-                              }
-                            </span>
+                            <span>{attrLevel}</span>
+
+                            {/* Proficiency Popup */}
+                            {isHovered &&
+                              proficiencies &&
+                              player.id === mySlotId && (
+                                <div className="attr-proficiency-popup">
+                                  <div className="proficiency-title">
+                                    {attributeNames[attrCap]}屬性專精
+                                  </div>
+                                  {proficiencies.map((prof, idx) => (
+                                    <div
+                                      key={idx}
+                                      className={`proficiency-item ${
+                                        attrLevel >= prof.level
+                                          ? "active"
+                                          : "inactive"
+                                      }`}
+                                    >
+                                      <div className="proficiency-level">
+                                        Lv{prof.level}:
+                                      </div>
+                                      <div className="proficiency-desc">
+                                        {prof.description}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                           </div>
                         );
                       })}
@@ -939,7 +1228,7 @@ function App() {
                         key={cardId}
                         className={`hand-card-clickable ${
                           canClick ? "can-select" : "disabled"
-                        }`}
+                        } ${selectedCard === cardId ? "selected" : ""}`}
                         onClick={() => {
                           if (canClick) {
                             // Reset action states when choosing a different card
@@ -1201,7 +1490,7 @@ function App() {
                                           key={attr}
                                           onClick={() => {
                                             setSelectedBoltAttr(attr);
-                                            setCardAction('bolt');
+                                            setCardAction("bolt");
                                           }}
                                           disabled={loading || attrValue === 0}
                                           className="btn-bolt"
@@ -1235,13 +1524,15 @@ function App() {
 
                           // Find furthest enemy in turn order
                           const myTeam = myPlayer.team;
-                          const enemies = gameInfo.players.filter(p => p.team !== myTeam && !p.is_dead);
+                          const enemies = gameInfo.players.filter(
+                            (p) => p.team !== myTeam && !p.is_dead
+                          );
 
                           // Calculate distance to each enemy going forward in turn order
                           let furthestEnemy = -1;
                           let maxDistance = -1;
 
-                          enemies.forEach(enemy => {
+                          enemies.forEach((enemy) => {
                             const distance = (enemy.id - mySlotId + 4) % 4;
                             if (distance > maxDistance) {
                               maxDistance = distance;
@@ -1260,7 +1551,21 @@ function App() {
                               <div className="target-buttons-horizontal">
                                 {gameInfo.players.map((player) => {
                                   // For single target attack, only allow furthest enemy
-                                  const isValidTarget = !player.is_dead && player.id === furthestEnemy;
+                                  const isValidTarget =
+                                    !player.is_dead &&
+                                    player.id === furthestEnemy;
+
+                                  // Calculate damage for spell
+                                  const damage = calculateSpellDamage(
+                                    spell.effect,
+                                    myPlayer.attributes,
+                                    spell.cost
+                                  );
+                                  const afterHP = Math.max(
+                                    0,
+                                    player.hp -
+                                      Math.max(0, damage - player.shield)
+                                  );
 
                                   return (
                                     <button
@@ -1272,17 +1577,22 @@ function App() {
                                         if (isValidTarget && !loading) {
                                           playSpell(
                                             selectedCard,
-                                            cardAction === "top" ? "Top" : "Bottom",
+                                            cardAction === "top"
+                                              ? "Top"
+                                              : "Bottom",
                                             [player.id]
                                           );
                                         }
                                       }}
                                       disabled={!isValidTarget || loading}
                                     >
-                                      <div className="target-name">{player.name}</div>
+                                      <div className="target-name">
+                                        {player.name}
+                                      </div>
                                       <div className="target-stats">
-                                        ❤️ {player.hp}/{player.max_hp}
-                                        {player.shield > 0 && ` | 🛡️ ${player.shield}`}
+                                        ❤️ {player.hp} → {afterHP}
+                                        {player.shield > 0 &&
+                                          ` | 🛡️ ${player.shield}`}
                                       </div>
                                     </button>
                                   );
@@ -1296,13 +1606,15 @@ function App() {
                         if (cardAction === "bolt" && selectedBoltAttr) {
                           // Find furthest enemy in turn order
                           const myTeam = myPlayer.team;
-                          const enemies = gameInfo.players.filter(p => p.team !== myTeam && !p.is_dead);
+                          const enemies = gameInfo.players.filter(
+                            (p) => p.team !== myTeam && !p.is_dead
+                          );
 
                           // Calculate distance to each enemy going forward in turn order
                           let furthestEnemy = -1;
                           let maxDistance = -1;
 
-                          enemies.forEach(enemy => {
+                          enemies.forEach((enemy) => {
                             const distance = (enemy.id - mySlotId + 4) % 4;
                             if (distance > maxDistance) {
                               maxDistance = distance;
@@ -1312,16 +1624,39 @@ function App() {
 
                           return (
                             <div className="target-selection-popup">
-                              <h4>選擇目標 - {attributeNames[selectedBoltAttr]}彈</h4>
+                              <h4>
+                                選擇目標 - {attributeNames[selectedBoltAttr]}彈
+                              </h4>
                               <div className="spell-info-compact">
-                                <div>屬性: {attributeNames[selectedBoltAttr]} Lv{myPlayer.attributes[selectedBoltAttr.toLowerCase() as keyof typeof myPlayer.attributes]}</div>
+                                <div>
+                                  屬性: {attributeNames[selectedBoltAttr]} Lv
+                                  {
+                                    myPlayer.attributes[
+                                      selectedBoltAttr.toLowerCase() as keyof typeof myPlayer.attributes
+                                    ]
+                                  }
+                                </div>
                                 <div>傷害: 等級+2點</div>
                               </div>
 
                               <div className="target-buttons-horizontal">
                                 {gameInfo.players.map((player) => {
                                   // For single target attack, only allow furthest enemy
-                                  const isValidTarget = !player.is_dead && player.id === furthestEnemy;
+                                  const isValidTarget =
+                                    !player.is_dead &&
+                                    player.id === furthestEnemy;
+
+                                  // Calculate damage for bolt: attribute level + 2
+                                  const attrLevel =
+                                    myPlayer.attributes[
+                                      selectedBoltAttr.toLowerCase() as keyof typeof myPlayer.attributes
+                                    ];
+                                  const damage = attrLevel + 2;
+                                  const afterHP = Math.max(
+                                    0,
+                                    player.hp -
+                                      Math.max(0, damage - player.shield)
+                                  );
 
                                   return (
                                     <button
@@ -1340,10 +1675,13 @@ function App() {
                                       }}
                                       disabled={!isValidTarget || loading}
                                     >
-                                      <div className="target-name">{player.name}</div>
+                                      <div className="target-name">
+                                        {player.name}
+                                      </div>
                                       <div className="target-stats">
-                                        ❤️ {player.hp}/{player.max_hp}
-                                        {player.shield > 0 && ` | 🛡️ ${player.shield}`}
+                                        ❤️ {player.hp} → {afterHP}
+                                        {player.shield > 0 &&
+                                          ` | 🛡️ ${player.shield}`}
                                       </div>
                                     </button>
                                   );
