@@ -47,19 +47,25 @@ const checkSpellRequirement = (
   cost: string,
   playerAttributes: any
 ): boolean => {
-  // Parse cost like "火1", "風5", etc.
-  const match = cost.match(/^(.+?)(\d+)$/);
-  if (!match) return true; // If can't parse, assume it can be cast
+  // Parse cost like "火1", "火2木1", "風5", etc.
+  // Match all patterns of attribute character followed by digit(s)
+  const pattern = /([火木雷水風毒])(\d+)/g;
+  const matches = Array.from(cost.matchAll(pattern));
 
-  const [, attrChar, levelStr] = match;
-  const requiredLevel = parseInt(levelStr);
-  const attrType = attributeNamesReverse[attrChar];
+  if (matches.length === 0) return true; // If can't parse, assume it can be cast
 
-  if (!attrType) return true; // Unknown attribute, assume can be cast
+  // Check ALL requirements must be met
+  return matches.every(match => {
+    const attrChar = match[1];
+    const requiredLevel = parseInt(match[2]);
+    const attrType = attributeNamesReverse[attrChar];
 
-  const playerAttrLevel =
-    playerAttributes[attrType.toLowerCase() as keyof typeof playerAttributes];
-  return playerAttrLevel >= requiredLevel;
+    if (!attrType) return true; // Unknown attribute, assume can be cast
+
+    const playerAttrLevel =
+      playerAttributes[attrType.toLowerCase() as keyof typeof playerAttributes];
+    return playerAttrLevel >= requiredLevel;
+  });
 };
 
 // Random username generator for testing
@@ -369,9 +375,39 @@ function App() {
   };
 
   // Game actions
-  const addLog = (msg: string) => {
+  const addLog = (result: ActionResult) => {
     const timestamp = new Date().toLocaleTimeString();
-    setGameLog((prev) => [...prev, `[${timestamp}] ${msg}`]);
+
+    // If there's a message, add it directly
+    if (result.message && !result.message.includes('Drew card')) {
+      setGameLog((prev) => [...prev, `[${timestamp}] ${result.message}`]);
+    }
+
+    // Also process events if available
+    if (result.events && result.events.length > 0) {
+      const newLogs: string[] = [];
+
+      result.events.forEach(event => {
+        // Skip draw card events
+        if (event.event_type === 'CardDrawn' || event.message?.includes('Drew card')) return;
+
+        let message = event.message;
+
+        // Add player names if player_id is available
+        if (event.player_id !== undefined && gameInfo) {
+          const player = gameInfo.players[event.player_id];
+          if (player) {
+            message = `${player.name}: ${message}`;
+          }
+        }
+
+        newLogs.push(`[${timestamp}] ${message}`);
+      });
+
+      if (newLogs.length > 0) {
+        setGameLog((prev) => [...prev, ...newLogs]);
+      }
+    }
   };
 
   const allocateAttr = async (attr: AttributeType) => {
@@ -379,7 +415,7 @@ function App() {
     try {
       setLoading(true);
       const result = await gameApi.allocateAttribute(gameId, attr);
-      addLog(result.message);
+      addLog(result);
       await loadGameInfo();
     } catch (err: any) {
       setError(err.message);
@@ -394,6 +430,7 @@ function App() {
     "top" | "bottom" | "bolt" | null
   >(null);
   const [selectedTargets, setSelectedTargets] = useState<number[]>([]);
+  const [selectedBoltAttr, setSelectedBoltAttr] = useState<AttributeType | null>(null);
 
   // Card hover state for popup
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
@@ -402,15 +439,16 @@ function App() {
   // Game log state
   const [gameLog, setGameLog] = useState<string[]>([]);
 
-  const playBoltWithCard = async (cardId: number, attr: AttributeType) => {
+  const playBoltWithCard = async (cardId: number, attr: AttributeType, targets: number[]) => {
     if (!gameId) return;
     try {
       setLoading(true);
       const result = await gameApi.playAttributeBolt(gameId, cardId, attr);
-      addLog(result.message);
+      addLog(result);
       setSelectedCard(null);
       setCardAction(null);
       setSelectedTargets([]);
+      setSelectedBoltAttr(null);
       await loadGameInfo();
       // Auto-draw card
       await drawCardAction();
@@ -430,10 +468,11 @@ function App() {
     try {
       setLoading(true);
       const result = await gameApi.playSpellCard(gameId, cardId, side, targets);
-      addLog(result.message);
+      addLog(result);
       setSelectedCard(null);
       setCardAction(null);
       setSelectedTargets([]);
+      setSelectedBoltAttr(null);
       await loadGameInfo();
       // Auto-draw card
       await drawCardAction();
@@ -449,7 +488,7 @@ function App() {
     try {
       setLoading(true);
       const result = await gameApi.useLiberationSkill(gameId, []);
-      addLog(result.message);
+      addLog(result);
       await loadGameInfo();
     } catch (err: any) {
       setError(err.message);
@@ -463,7 +502,7 @@ function App() {
     try {
       setLoading(true);
       const result = await gameApi.drawCard(gameId);
-      addLog(result.message);
+      addLog(result);
       await loadGameInfo();
     } catch (err: any) {
       setError(err.message);
@@ -773,6 +812,13 @@ function App() {
 
         {error && <div className="error">{error}</div>}
 
+        {/* Turn Phase Hint - Top of Game */}
+        {isMyTurn && (
+          <div className={`turn-phase-hint-top turn-phase-${gameInfo.turn_phase.toLowerCase().replace(/[^a-z]/g, '')}`}>
+            你的回合: {gameInfo.turn_phase === 'AllocateAttribute' ? '請分配屬性點' : gameInfo.turn_phase === 'PlayCard' ? '請出牌' : '請抽牌'}
+          </div>
+        )}
+
         <div className="game-layout">
           {/* LEFT: Players List & Log */}
           <div className="players-list-panel">
@@ -792,7 +838,7 @@ function App() {
                     key={player.id}
                     className={`player-row ${
                       player.id === mySlotId ? "my-player-row" : ""
-                    }`}
+                    } player-team-${player.team.toLowerCase()}`}
                   >
                     <div className="player-row-header">
                       <div className="player-name-hp">
@@ -881,7 +927,7 @@ function App() {
           {/* RIGHT: Card Deck & Actions */}
           <div className="cards-panel">
             <div className="my-hand-section">
-              <h3>🎴 我的手牌 ({myPlayer.hand.length}/5)</h3>
+              <h3>🎴 我的手牌</h3>
               <div className="hand-cards-grid">
                 {myPlayer.hand.length > 0 ? (
                   myPlayer.hand.map((cardId) => {
@@ -894,10 +940,16 @@ function App() {
                         className={`hand-card-clickable ${
                           canClick ? "can-select" : "disabled"
                         }`}
-                        onClick={() => canClick && setSelectedCard(cardId)}
-                        onMouseEnter={() =>
-                          canClick && handleCardMouseEnter(cardId)
-                        }
+                        onClick={() => {
+                          if (canClick) {
+                            // Reset action states when choosing a different card
+                            setCardAction(null);
+                            setSelectedTargets([]);
+                            setSelectedBoltAttr(null);
+                            setSelectedCard(cardId);
+                          }
+                        }}
+                        onMouseEnter={() => handleCardMouseEnter(cardId)}
                         onMouseLeave={handleCardMouseLeave}
                       >
                         {cardInfo ? (
@@ -1147,9 +1199,10 @@ function App() {
                                       return (
                                         <button
                                           key={attr}
-                                          onClick={() =>
-                                            playBoltWithCard(selectedCard, attr)
-                                          }
+                                          onClick={() => {
+                                            setSelectedBoltAttr(attr);
+                                            setCardAction('bolt');
+                                          }}
                                           disabled={loading || attrValue === 0}
                                           className="btn-bolt"
                                           title={
@@ -1168,17 +1221,6 @@ function App() {
                                   </div>
                                 </div>
                               </div>
-
-                              <button
-                                onClick={() => {
-                                  setSelectedCard(null);
-                                  setCardAction(null);
-                                  setSelectedTargets([]);
-                                }}
-                                className="btn-secondary btn-small"
-                              >
-                                取消
-                              </button>
                             </div>
                           );
                         }
@@ -1191,6 +1233,22 @@ function App() {
                               : cardInfo.bottom_spell;
                           if (!spell) return null;
 
+                          // Find furthest enemy in turn order
+                          const myTeam = myPlayer.team;
+                          const enemies = gameInfo.players.filter(p => p.team !== myTeam && !p.is_dead);
+
+                          // Calculate distance to each enemy going forward in turn order
+                          let furthestEnemy = -1;
+                          let maxDistance = -1;
+
+                          enemies.forEach(enemy => {
+                            const distance = (enemy.id - mySlotId + 4) % 4;
+                            if (distance > maxDistance) {
+                              maxDistance = distance;
+                              furthestEnemy = enemy.id;
+                            }
+                          });
+
                           return (
                             <div className="target-selection-popup">
                               <h4>選擇目標 - {spell.name}</h4>
@@ -1199,71 +1257,97 @@ function App() {
                                 <div>效果: {spell.effect}</div>
                               </div>
 
-                              <div className="target-grid">
+                              <div className="target-buttons-horizontal">
                                 {gameInfo.players.map((player) => {
-                                  const isValidTarget = !player.is_dead; // Simplified - adjust based on spell targeting rules
-                                  const isSelected = selectedTargets.includes(
-                                    player.id
-                                  );
+                                  // For single target attack, only allow furthest enemy
+                                  const isValidTarget = !player.is_dead && player.id === furthestEnemy;
 
                                   return (
-                                    <div
+                                    <button
                                       key={player.id}
-                                      className={`target-option ${
-                                        isValidTarget ? "valid" : "invalid"
-                                      } ${isSelected ? "selected" : ""}`}
+                                      className={`target-button ${
+                                        isValidTarget ? "valid" : "disabled"
+                                      }`}
                                       onClick={() => {
-                                        if (isValidTarget) {
-                                          // Toggle selection
-                                          if (isSelected) {
-                                            setSelectedTargets(
-                                              selectedTargets.filter(
-                                                (id) => id !== player.id
-                                              )
-                                            );
-                                          } else {
-                                            setSelectedTargets([player.id]); // Single target for now
-                                          }
+                                        if (isValidTarget && !loading) {
+                                          playSpell(
+                                            selectedCard,
+                                            cardAction === "top" ? "Top" : "Bottom",
+                                            [player.id]
+                                          );
                                         }
                                       }}
+                                      disabled={!isValidTarget || loading}
                                     >
-                                      <span>{player.name}</span>
-                                      <span className="target-hp">
+                                      <div className="target-name">{player.name}</div>
+                                      <div className="target-stats">
                                         ❤️ {player.hp}/{player.max_hp}
-                                      </span>
-                                      {isSelected && (
-                                        <span className="selected-mark">✓</span>
-                                      )}
-                                    </div>
+                                        {player.shield > 0 && ` | 🛡️ ${player.shield}`}
+                                      </div>
+                                    </button>
                                   );
                                 })}
                               </div>
+                            </div>
+                          );
+                        }
 
-                              <div className="action-buttons">
-                                <button
-                                  onClick={() =>
-                                    playSpell(
-                                      selectedCard,
-                                      cardAction === "top" ? "Top" : "Bottom",
-                                      selectedTargets
-                                    )
-                                  }
-                                  disabled={
-                                    loading || selectedTargets.length === 0
-                                  }
-                                  className="btn-primary"
-                                >
-                                  確認使用
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setCardAction(null);
-                                    setSelectedTargets([]);
-                                  }}
-                                  className="btn-secondary btn-small"
-                                >
-                                  返回
-                                </button>
+                        // If bolt action chosen, show target selection
+                        if (cardAction === "bolt" && selectedBoltAttr) {
+                          // Find furthest enemy in turn order
+                          const myTeam = myPlayer.team;
+                          const enemies = gameInfo.players.filter(p => p.team !== myTeam && !p.is_dead);
+
+                          // Calculate distance to each enemy going forward in turn order
+                          let furthestEnemy = -1;
+                          let maxDistance = -1;
+
+                          enemies.forEach(enemy => {
+                            const distance = (enemy.id - mySlotId + 4) % 4;
+                            if (distance > maxDistance) {
+                              maxDistance = distance;
+                              furthestEnemy = enemy.id;
+                            }
+                          });
+
+                          return (
+                            <div className="target-selection-popup">
+                              <h4>選擇目標 - {attributeNames[selectedBoltAttr]}彈</h4>
+                              <div className="spell-info-compact">
+                                <div>屬性: {attributeNames[selectedBoltAttr]} Lv{myPlayer.attributes[selectedBoltAttr.toLowerCase() as keyof typeof myPlayer.attributes]}</div>
+                                <div>傷害: 等級+2點</div>
+                              </div>
+
+                              <div className="target-buttons-horizontal">
+                                {gameInfo.players.map((player) => {
+                                  // For single target attack, only allow furthest enemy
+                                  const isValidTarget = !player.is_dead && player.id === furthestEnemy;
+
+                                  return (
+                                    <button
+                                      key={player.id}
+                                      className={`target-button ${
+                                        isValidTarget ? "valid" : "disabled"
+                                      }`}
+                                      onClick={() => {
+                                        if (isValidTarget && !loading) {
+                                          playBoltWithCard(
+                                            selectedCard,
+                                            selectedBoltAttr,
+                                            [player.id]
+                                          );
+                                        }
+                                      }}
+                                      disabled={!isValidTarget || loading}
+                                    >
+                                      <div className="target-name">{player.name}</div>
+                                      <div className="target-stats">
+                                        ❤️ {player.hp}/{player.max_hp}
+                                        {player.shield > 0 && ` | 🛡️ ${player.shield}`}
+                                      </div>
+                                    </button>
+                                  );
+                                })}
                               </div>
                             </div>
                           );

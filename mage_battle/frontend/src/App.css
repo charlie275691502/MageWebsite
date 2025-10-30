@@ -1647,16 +1647,27 @@
 }
 
 .player-row {
-  background: #f7fafc;
   border: 2px solid #e2e8f0;
   border-radius: 10px;
   padding: 1rem;
   transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.player-row.player-team-team0 {
+  background: #bee3f8;
+  border-color: #90cdf4;
+}
+
+.player-row.player-team-team1 {
+  background: #fed7d7;
+  border-color: #fc8181;
 }
 
 .player-row.my-player-row {
   border-color: #667eea;
-  background: #ebf8ff;
+  border-width: 3px;
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.25);
 }
 
 .player-row-header {
@@ -1866,6 +1877,42 @@
   gap: 1.5rem;
 }
 
+/* Turn Phase Hint - Top of Game */
+.turn-phase-hint-top {
+  color: white;
+  padding: 1rem 2rem;
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  animation: pulse-hint 2s infinite;
+  margin: 1rem 2rem 0;
+  border-radius: 12px;
+}
+
+.turn-phase-allocateattribute {
+  background: linear-gradient(135deg, #f6ad55, #ed8936);
+}
+
+.turn-phase-playcard {
+  background: linear-gradient(135deg, #f6ad55, #ed8936);
+}
+
+.turn-phase-drawcard {
+  background: linear-gradient(135deg, #48bb78, #38a169);
+}
+
+@keyframes pulse-hint {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    transform: scale(1.02);
+  }
+}
+
 /* Right: Game Log Panel */
 .game-log-panel {
   min-width: 0;
@@ -1928,16 +1975,12 @@
 .hand-card-clickable.disabled {
   opacity: 0.5;
   cursor: default;
-  filter: grayscale(0.7);
 }
 
 .hand-card-clickable.disabled:hover {
-  transform: none;
-  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
-}
-
-.hand-card-clickable.disabled .card-hover-popup {
-  display: none;
+  opacity: 1;
+  transform: translateY(-6px);
+  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.5);
 }
 
 .discard-info-inline {
@@ -2079,9 +2122,9 @@
 }
 
 .btn-spell-confirm:disabled {
-  opacity: 0.5;
+  opacity: 0.7;
   cursor: not-allowed;
-  background: #cbd5e0;
+  background: linear-gradient(135deg, #a0aec0, #718096);
 }
 
 .bolt-buttons-grid {
@@ -2112,9 +2155,9 @@
 }
 
 .btn-bolt:disabled {
-  opacity: 0.4;
+  opacity: 0.6;
   cursor: not-allowed;
-  background: #cbd5e0;
+  background: linear-gradient(135deg, #a0aec0, #718096);
 }
 
 .bolt-level {
@@ -2147,49 +2190,66 @@
   margin: 0.25rem 0;
 }
 
-.target-option {
+/* Horizontal Target Buttons */
+.target-buttons-horizontal {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
-  background: white;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.target-button {
+  flex: 1;
+  min-width: 180px;
+  max-width: 250px;
+  padding: 1.25rem 1rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
   border-radius: 8px;
-  border: 2px solid #e2e8f0;
   cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
   transition: all 0.3s ease;
-  margin-bottom: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.target-option.valid:hover {
-  border-color: #667eea;
-  background: #f7fafc;
-  transform: translateX(4px);
+.target-button.valid {
+  background: linear-gradient(135deg, #667eea, #764ba2);
 }
 
-.target-option.invalid {
+.target-button.valid:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.target-button.disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  background: #f7fafc;
+  background: linear-gradient(135deg, #a0aec0, #718096);
 }
 
-.target-option.selected {
-  border-color: #48bb78;
-  background: #c6f6d5;
+.target-button.disabled:hover {
+  transform: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.target-option span {
-  font-weight: 600;
-  color: #2d3748;
+.target-name {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: white;
 }
 
-.target-hp {
-  color: #e53e3e;
+.target-stats {
   font-size: 0.9rem;
-}
-
-.selected-mark {
-  color: #22543d;
-  font-size: 1.2rem;
+  color: white;
+  font-weight: 600;
+  opacity: 0.95;
 }
 
 /* Responsive */
