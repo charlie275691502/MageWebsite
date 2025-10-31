@@ -1,17 +1,7 @@
-mod attribute;
-mod buff;
-mod card;
-mod character;
-mod effect;
-mod player;
-mod game;
-mod lobby;
-mod lobby_types;
-mod api_types;
-mod web_server;
-
-use game::Game;
-use character::CharacterType;
+use mage_battle::game::Game;
+use mage_battle::character::CharacterType;
+use mage_battle::player::TeamId;
+use mage_battle::web_server;
 
 #[tokio::main]
 async fn main() {
@@ -116,7 +106,7 @@ fn start_cli_game() {
     }
 
     if let Some(winner) = game.get_winner() {
-        println!("\n🎉 遊戲結束！隊伍 {} 獲勝！", if winner == player::TeamId::Team0 { "A" } else { "B" });
+        println!("\n🎉 遊戲結束！隊伍 {} 獲勝！", if winner == TeamId::Team0 { "A" } else { "B" });
     }
 }
 

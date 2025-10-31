@@ -114,19 +114,23 @@ impl Player {
     }
 
     /// 造成傷害
-    pub fn take_damage(&mut self, mut damage: u32) -> u32 {
+    /// damage_type: 傷害類型（法術/技能/直接）
+    pub fn take_damage(&mut self, mut damage: u32, damage_type: crate::damage::DamageType) -> u32 {
+        use crate::damage::DamageType;
+
         // 檢查免疫
         if self.buffs.is_immune_to_damage() {
             return 0;
         }
 
-        // 木Lv5效果：卡片傷害-1
-        if self.attributes.wood >= 5 && damage > 0 {
+        // 木Lv5效果：法術傷害-1
+        if damage_type.is_reduced_by_wood_lv5() && self.attributes.wood >= 5 && damage > 0 {
             damage = damage.saturating_sub(1);
         }
 
-        // 守護木雕效果：受到傷害-4
-        if self.buffs.has(crate::buff::BuffType::GuardWoodCarving) {
+        // 守護木雕效果：法術和技能傷害-4
+        if damage_type.is_reduced_by_guard_wood_carving()
+            && self.buffs.has(crate::buff::BuffType::GuardWoodCarving) {
             damage = damage.saturating_sub(4);
 
             // 減少守護木雕的剩餘次數
@@ -140,14 +144,26 @@ impl Player {
             }
         }
 
-        let actual_damage = if damage > self.shield {
-            let remaining = damage - self.shield;
-            self.shield = 0;
-            self.hp -= remaining as i32;
-            remaining
+        // 護盾處理 - NEW LOGIC: Shield blocks ALL damage, no overflow to HP
+        let actual_hp_damage = if damage_type.is_blocked_by_shield() {
+            if self.shield > 0 {
+                // Shield absorbs damage
+                if damage >= self.shield {
+                    self.shield = 0;
+                } else {
+                    self.shield -= damage;
+                }
+                // NO HP damage from shielded attacks
+                0
+            } else {
+                // No shield, damage goes to HP
+                self.hp -= damage as i32;
+                damage
+            }
         } else {
-            self.shield -= damage;
-            0
+            // Direct damage bypasses shield and goes straight to HP
+            self.hp -= damage as i32;
+            damage
         };
 
         // 檢查是否死亡
@@ -156,7 +172,7 @@ impl Player {
             self.die();
         }
 
-        actual_damage
+        actual_hp_damage
     }
 
     /// 回復生命
@@ -339,13 +355,13 @@ mod tests {
         let character = Character::new(CharacterType::FlamePoison);
         let mut player = Player::new(0, "Test".to_string(), character);
 
-        player.take_damage(10);
+        player.take_damage(10, crate::damage::DamageType::Spell);
         assert_eq!(player.hp, 40);
 
         player.gain_shield(5);
-        player.take_damage(10);
+        player.take_damage(10, crate::damage::DamageType::Spell);
         assert_eq!(player.shield, 0);
-        assert_eq!(player.hp, 35);
+        assert_eq!(player.hp, 40); // NEW: Shield blocks all damage, no overflow
     }
 
     #[test]
@@ -353,7 +369,7 @@ mod tests {
         let character = Character::new(CharacterType::FlamePoison);
         let mut player = Player::new(0, "Test".to_string(), character);
 
-        player.take_damage(50);
+        player.take_damage(50, crate::damage::DamageType::Spell);
         assert!(player.is_dead);
         assert_eq!(player.death_turns, 0);
 

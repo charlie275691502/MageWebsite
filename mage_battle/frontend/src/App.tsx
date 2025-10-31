@@ -112,80 +112,6 @@ const extractEnchantments = (cost: string): string[] => {
     .filter(Boolean);
 };
 
-// Helper function to calculate damage from spell effect with proficiency bonuses
-const calculateSpellDamage = (
-  effect: string,
-  playerAttributes: any,
-  cost: string
-): number => {
-  let baseDamage = 0;
-
-  // Try to extract damage from effect text
-  // Patterns: "造成5點傷害", "6點傷害", "造成屬性等級＋２點傷害"
-
-  // First check for fixed damage like "5點傷害" or "６點傷害"
-  const fixedDamageMatch = effect.match(/(\d+|[０-９]+)點傷害/);
-  if (fixedDamageMatch) {
-    // Convert full-width numbers to regular numbers
-    const damageStr = fixedDamageMatch[1];
-    const fullWidthMap: Record<string, string> = {
-      "０": "0",
-      "１": "1",
-      "２": "2",
-      "３": "3",
-      "４": "4",
-      "５": "5",
-      "６": "6",
-      "７": "7",
-      "８": "8",
-      "９": "9",
-    };
-    const normalizedDamage = damageStr
-      .split("")
-      .map((c) => fullWidthMap[c] || c)
-      .join("");
-    baseDamage = parseInt(normalizedDamage);
-  }
-  // Check for attribute level based damage like "屬性等級＋２點傷害"
-  else if (effect.includes("屬性等級")) {
-    // Extract the attribute from cost (first attribute mentioned)
-    const attrMatch = cost.match(/([火木雷水風毒])/);
-    if (attrMatch) {
-      const attrChar = attrMatch[1];
-      const attrType = attributeNamesReverse[attrChar];
-      if (attrType) {
-        const attrLevel =
-          playerAttributes[
-            attrType.toLowerCase() as keyof typeof playerAttributes
-          ];
-        // Extract the bonus (like "＋２")
-        const bonusMatch = effect.match(/＋(\d+)/);
-        const bonus = bonusMatch ? parseInt(bonusMatch[1]) : 0;
-        baseDamage = attrLevel + bonus;
-      }
-    }
-  }
-
-  // Apply proficiency bonuses based on spell enchantments
-  const enchantments = extractEnchantments(cost);
-
-  // Fire Lv3: All damage spells +1
-  if (enchantments.includes("fire") && playerAttributes.fire >= 3) {
-    baseDamage += 1;
-  }
-
-  // Thunder proficiency
-  if (enchantments.includes("thunder")) {
-    if (playerAttributes.thunder >= 3) {
-      baseDamage += 1;
-    }
-    if (playerAttributes.thunder >= 5) {
-      baseDamage += 2;
-    }
-  }
-
-  return baseDamage; // Unknown damage pattern if baseDamage is still 0
-};
 
 // Random username generator for testing
 const generateRandomUsername = () => {
@@ -1600,27 +1526,6 @@ function App() {
                                     !player.is_dead &&
                                     player.id === furthestEnemy;
 
-                                  // Calculate damage for spell
-                                  const damage = calculateSpellDamage(
-                                    spell.effect,
-                                    myPlayer.attributes,
-                                    spell.cost
-                                  );
-
-                                  // Calculate shield absorption and remaining damage
-                                  const shieldAbsorbed = Math.min(
-                                    damage,
-                                    player.shield
-                                  );
-                                  const damageToHP =
-                                    player.shield > 0 ? 0 : damage;
-                                  const newShield =
-                                    player.shield - shieldAbsorbed;
-                                  const afterHP = Math.max(
-                                    0,
-                                    player.hp - damageToHP
-                                  );
-
                                   return (
                                     <button
                                       key={player.id}
@@ -1644,9 +1549,9 @@ function App() {
                                         {player.name}
                                       </div>
                                       <div className="target-stats">
-                                        ❤️ {player.hp} → {afterHP}
+                                        ❤️ {player.hp}
                                         {player.shield > 0 &&
-                                          ` | 🛡️ ${player.shield} → ${newShield}`}
+                                          ` | 🛡️ ${player.shield}`}
                                       </div>
                                     </button>
                                   );
@@ -1700,48 +1605,6 @@ function App() {
                                     !player.is_dead &&
                                     player.id === furthestEnemy;
 
-                                  // Calculate damage for bolt: base = attribute level
-                                  const attrLevel =
-                                    myPlayer.attributes[
-                                      selectedBoltAttr.toLowerCase() as keyof typeof myPlayer.attributes
-                                    ];
-                                  let damage = attrLevel;
-
-                                  // Apply Fire Lv3 proficiency: all attribute bolts +1
-                                  if (myPlayer.attributes.fire >= 3) {
-                                    damage += 1;
-                                  }
-
-                                  // Apply Thunder proficiency if it's a thunder bolt
-                                  if (selectedBoltAttr === "Thunder") {
-                                    if (myPlayer.attributes.thunder >= 3) {
-                                      damage += 1;
-                                    }
-                                    if (myPlayer.attributes.thunder >= 5) {
-                                      damage += 2;
-                                    }
-                                  }
-
-                                  // Apply Wood Lv5 damage reduction for target
-                                  let finalDamage = damage;
-                                  if (player.attributes.wood >= 5) {
-                                    finalDamage = Math.max(0, damage - 1);
-                                  }
-
-                                  // Calculate shield absorption and remaining damage
-                                  const shieldAbsorbed = Math.min(
-                                    finalDamage,
-                                    player.shield
-                                  );
-                                  const damageToHP =
-                                    player.shield > 0 ? 0 : finalDamage;
-                                  const newShield =
-                                    player.shield - shieldAbsorbed;
-                                  const afterHP = Math.max(
-                                    0,
-                                    player.hp - damageToHP
-                                  );
-
                                   return (
                                     <button
                                       key={player.id}
@@ -1763,9 +1626,9 @@ function App() {
                                         {player.name}
                                       </div>
                                       <div className="target-stats">
-                                        ❤️ {player.hp} → {afterHP}
+                                        ❤️ {player.hp}
                                         {player.shield > 0 &&
-                                          ` | 🛡️ ${player.shield} → ${newShield}`}
+                                          ` | 🛡️ ${player.shield}`}
                                       </div>
                                     </button>
                                   );

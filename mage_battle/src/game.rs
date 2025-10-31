@@ -119,12 +119,12 @@ impl Game {
             return;
         }
 
-        // 火Lv5效果：回合開始時對所有敵人造成1點傷害
+        // 火Lv5效果：回合開始時對所有敵人造成1點技能傷害（不受木Lv5影響）
         let has_fire_lv5 = self.players[current_id].attributes.fire >= 5;
         if has_fire_lv5 {
             let enemy_ids = self.players[current_id].enemy_ids();
             for &enemy_id in &enemy_ids {
-                self.players[enemy_id].take_damage(1);
+                self.players[enemy_id].take_damage(1, crate::damage::DamageType::Skill);
             }
         }
 
@@ -138,12 +138,45 @@ impl Game {
 
         if let Some(target_id) = health_drain_target {
             if target_id >= 0 && (target_id as usize) < self.players.len() {
-                self.players[target_id as usize].take_damage(1);
+                self.players[target_id as usize].take_damage(1, crate::damage::DamageType::Skill);
                 self.players[current_id].heal(1);
             }
         }
 
         self.turn_phase = TurnPhase::AllocateAttribute;
+    }
+
+    /// 獲取最遠的存活敵人
+    /// 根據回合順序向前計算距離，返回距離最遠的存活敵人
+    fn get_furthest_alive_enemy(&self, player_id: PlayerId) -> Option<PlayerId> {
+        let current_team = self.players[player_id].team;
+        let num_players = self.players.len();
+
+        // 計算每個敵人的距離（在回合順序中向前的距離）
+        let mut furthest_enemy = None;
+        let mut max_distance = 0;
+
+        // Iterate through all players and find enemies (different team)
+        for (enemy_id, enemy) in self.players.iter().enumerate() {
+            // Skip if same player, dead, or same team
+            if enemy_id == player_id || !enemy.is_alive() || enemy.team == current_team {
+                continue;
+            }
+
+            // 計算順時針距離
+            let distance = if enemy_id > player_id {
+                enemy_id - player_id
+            } else {
+                num_players - player_id + enemy_id
+            };
+
+            if distance > max_distance {
+                max_distance = distance;
+                furthest_enemy = Some(enemy_id);
+            }
+        }
+
+        furthest_enemy
     }
 
     /// 處理回合結束
@@ -197,13 +230,9 @@ impl Game {
             return Err("打出卡片失敗".to_string());
         }
 
-        // 屬性彈只能攻擊前一位玩家（左側）
-        let target_id = self.players[current_id].left_player_id(self.players.len());
-
-        // 檢查目標是否存活
-        if self.players[target_id].is_dead {
-            return Err("目標已死亡".to_string());
-        }
+        // 屬性彈攻擊最遠的存活敵人
+        let target_id = self.get_furthest_alive_enemy(current_id)
+            .ok_or("沒有存活的敵人".to_string())?;
 
         let bolt = AttributeBolt::new(attr_type, level);
         let mut damage = bolt.base_damage();
@@ -213,9 +242,16 @@ impl Game {
         let caster_thunder = self.players[current_id].attributes.thunder;
         let caster_wood = self.players[current_id].attributes.wood;
 
-        // 木Lv3專精：使用木屬性彈時，減少1點生命並獲得1點護盾
+        // 木Lv3專精：使用木屬性彈時，減少1點生命並獲得1點護盾（不受木Lv5影響，不受護盾影響）
         if attr_type == AttributeType::Wood && caster_wood >= 3 {
-            self.players[current_id].take_damage(1);
+            self.players[current_id].hp -= 1;
+            if self.players[current_id].hp <= 0 {
+                self.players[current_id].hp = 0;
+                self.players[current_id].is_dead = true;
+                self.players[current_id].death_turns = 0;
+                self.players[current_id].hand.clear();
+                self.players[current_id].buffs.clear_all();
+            }
             self.players[current_id].shield += 1;
         }
 
@@ -226,28 +262,20 @@ impl Game {
 
         // 雷屬性專精
         if attr_type == AttributeType::Thunder {
-            // 雷Lv3: 雷屬性卡片傷害+1
+            // 雷Lv3: 雷屬性法術傷害+1
             if caster_thunder >= 3 {
                 damage += 1;
             }
-            // 雷Lv5: 雷屬性卡片傷害+2 (合計+3)
+            // 雷Lv5: 雷屬性法術傷害+2 (合計+3)
             if caster_thunder >= 5 {
                 damage += 2;
             }
         }
 
-        // 檢查目標的木屬性專精
-        let damage_reduction = if self.players[target_id].attributes.wood >= 5 {
-            // 木Lv5: 自己與隊友受到的卡片傷害-1
-            1
-        } else {
-            0
-        };
+        // NOTE: Wood Lv5 reduction is now handled in take_damage()
 
-        let final_damage = damage.saturating_sub(damage_reduction);
-
-        // 對目標造成傷害
-        self.players[target_id].take_damage(final_damage);
+        // 對目標造成傷害（屬性彈視為法術，受木Lv5影響）
+        self.players[target_id].take_damage(damage, crate::damage::DamageType::Spell);
 
         self.turn_phase = TurnPhase::DrawCard;
         Ok(())
@@ -334,10 +362,10 @@ impl Game {
                 self.players[teammate_id].buffs.add(buff);
             }
             CharacterType::ThunderPoison => {
-                // 鏈鎖電擊：對所有其他玩家造成10點傷害
+                // 鏈鎖電擊：對所有其他玩家造成10點法術傷害
                 for i in 0..self.players.len() {
                     if i != current_id {
-                        self.players[i].take_damage(10);
+                        self.players[i].take_damage(10, crate::damage::DamageType::Spell);
                     }
                 }
             }
@@ -392,11 +420,18 @@ impl Game {
             .map(|(attr, _)| *attr)
             .collect();
 
-        // 木Lv3專精：使用木屬性法術時，減少1點生命並獲得1點護盾
+        // 木Lv3專精：使用木屬性法術時，減少1點生命並獲得1點護盾（不受木Lv5影響，不受護盾影響）
         let has_wood = enchantments.contains(&AttributeType::Wood);
         let caster_wood = self.players[caster_id].attributes.wood;
         if has_wood && caster_wood >= 3 {
-            self.players[caster_id].take_damage(1);
+            self.players[caster_id].hp -= 1;
+            if self.players[caster_id].hp <= 0 {
+                self.players[caster_id].hp = 0;
+                self.players[caster_id].is_dead = true;
+                self.players[caster_id].death_turns = 0;
+                self.players[caster_id].hand.clear();
+                self.players[caster_id].buffs.clear_all();
+            }
             self.players[caster_id].shield += 1;
         }
 
@@ -491,26 +526,17 @@ impl Game {
         }
 
         // 對每個目標造成傷害
+        // NOTE: Wood Lv5 reduction is now handled in take_damage(), no need to calculate here
         for &target_id in targets {
             if target_id >= self.players.len() {
                 continue;
             }
 
-            // 檢查目標的木屬性專精
-            let damage_reduction = if self.players[target_id].attributes.wood >= 5 {
-                // 木Lv5: 自己與隊友受到的卡片傷害-1
-                1
-            } else {
-                0
-            };
-
-            let final_damage = base_damage.saturating_sub(damage_reduction);
-
             if self.players[target_id].is_dead {
                 continue;
             }
 
-            self.players[target_id].take_damage(final_damage);
+            self.players[target_id].take_damage(base_damage, crate::damage::DamageType::Spell);
         }
 
         Ok(())
@@ -682,9 +708,9 @@ mod tests {
         assert_eq!(game.players.len(), 4);
         assert_eq!(game.state, GameState::InProgress);
 
-        // 檢查初始手牌
+        // 檢查初始手牌 (Battle_Logic.txt Line 343: "Starting Hand: 5 cards per player")
         for player in &game.players {
-            assert_eq!(player.hand.len(), 4);
+            assert_eq!(player.hand.len(), 5);
         }
     }
 }

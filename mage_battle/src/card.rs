@@ -242,16 +242,16 @@ mod tests {
                 .with_second_effect(EffectType::GainAPSelf(2)),
         );
 
-        let card = Card::new(1, side_a, side_b);
+        let card = Card::new(1, side_a, Some(side_b));
 
         let mut attrs = AttributePoints::new();
         attrs.set(AttributeType::Fire, 1);
 
-        assert!(card.can_play(&attrs));
+        assert!(card.can_play(CardSide::Top, &attrs));
 
         attrs.set(AttributeType::Fire, 0);
         attrs.set(AttributeType::Wind, 5);
 
-        assert!(!card.can_play(&attrs));  // A面無法使用
+        assert!(!card.can_play(CardSide::Top, &attrs));  // A面無法使用
     }
 }

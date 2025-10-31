@@ -327,6 +327,12 @@ mod tests {
         room.select_character(2, CharacterType::ThunderPoison).unwrap();
         room.select_character(3, CharacterType::WaterWind).unwrap();
 
+        // 選擇隊伍 (P0和P2在Team A，P1和P3在Team B)
+        room.select_team(0, Team::A).unwrap();
+        room.select_team(1, Team::B).unwrap();
+        room.select_team(2, Team::C).unwrap();
+        room.select_team(3, Team::D).unwrap();
+
         assert!(!room.can_start_game());
 
         // 所有人準備
