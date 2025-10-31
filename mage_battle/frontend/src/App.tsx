@@ -99,6 +99,81 @@ const checkSpellRequirement = (
   });
 };
 
+// Helper function to get activated attribute proficiencies for a spell
+const getActivatedProficiencies = (
+  spellCost: string,
+  playerAttributes: any
+): string[] => {
+  const activated: string[] = [];
+
+  // Parse spell cost to find which attributes are involved
+  const pattern = /([火木雷水風毒])(\d+)/g;
+  const matches = Array.from(spellCost.matchAll(pattern));
+
+  const involvedAttributes = new Set<string>();
+  matches.forEach((match) => {
+    const attrChar = match[1];
+    const attrType = attributeNamesReverse[attrChar];
+    if (attrType) {
+      involvedAttributes.add(attrType.toLowerCase());
+    }
+  });
+
+  // Check each attribute's proficiency levels
+  Object.entries(attributeProficiency).forEach(([attr, proficiencies]) => {
+    // Only show proficiencies for attributes involved in this spell
+    if (!involvedAttributes.has(attr)) return;
+
+    const playerLevel = playerAttributes[attr as keyof typeof playerAttributes];
+
+    proficiencies.forEach((prof) => {
+      // Skip passive skills: Wood Lv5 and Fire Lv5
+      if ((attr === 'wood' && prof.level === 5) || (attr === 'fire' && prof.level === 5)) {
+        return;
+      }
+
+      if (playerLevel >= prof.level) {
+        activated.push(`${attributeNames[attr.charAt(0).toUpperCase() + attr.slice(1) as AttributeType]} Lv${prof.level}: ${prof.description}`);
+      }
+    });
+  });
+
+  return activated;
+};
+
+// Helper function to get activated proficiencies for attribute bolt
+const getActivatedProficienciesForBolt = (
+  boltAttr: AttributeType,
+  playerAttributes: any
+): string[] => {
+  const activated: string[] = [];
+  const attrLower = boltAttr.toLowerCase();
+
+  // Fire Lv3 affects ALL attribute bolts
+  if (playerAttributes.fire >= 3) {
+    activated.push(`火 Lv3: ${attributeProficiency.fire.find(p => p.level === 3)?.description}`);
+  }
+
+  // Check the specific bolt attribute's proficiencies
+  const proficiencies = attributeProficiency[attrLower];
+  if (proficiencies) {
+    const playerLevel = playerAttributes[attrLower as keyof typeof playerAttributes];
+
+    proficiencies.forEach((prof) => {
+      // Skip passive skills: Wood Lv5 and Fire Lv5
+      if ((attrLower === 'wood' && prof.level === 5) || (attrLower === 'fire' && prof.level === 5)) {
+        return;
+      }
+
+      if (playerLevel >= prof.level) {
+        activated.push(`${attributeNames[boltAttr]} Lv${prof.level}: ${prof.description}`);
+      }
+    });
+  }
+
+  return activated;
+};
+
 // Helper function to extract enchantments from cost string
 const extractEnchantments = (cost: string): string[] => {
   const pattern = /([火木雷水風毒])\d+/g;
@@ -1511,6 +1586,11 @@ function App() {
                             }
                           });
 
+                          const activatedProfs = getActivatedProficiencies(
+                            spell.cost,
+                            myPlayer.attributes
+                          );
+
                           return (
                             <div className="target-selection-popup">
                               <h4>選擇目標 - {spell.name}</h4>
@@ -1518,6 +1598,17 @@ function App() {
                                 <div>需求: {spell.cost}</div>
                                 <div>效果: {spell.effect}</div>
                               </div>
+
+                              {activatedProfs.length > 0 && (
+                                <div className="activated-proficiencies">
+                                  <div className="prof-header">✨ 啟動專精效果</div>
+                                  {activatedProfs.map((prof, idx) => (
+                                    <div key={idx} className="prof-item">
+                                      {prof}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
 
                               <div className="target-buttons-horizontal">
                                 {gameInfo.players.map((player) => {
@@ -1529,7 +1620,7 @@ function App() {
                                   return (
                                     <button
                                       key={player.id}
-                                      className={`target-button ${
+                                      className={`target-button team-${player.team} ${
                                         isValidTarget ? "valid" : "disabled"
                                       }`}
                                       onClick={() => {
@@ -1581,6 +1672,11 @@ function App() {
                             }
                           });
 
+                          const activatedProfs = getActivatedProficienciesForBolt(
+                            selectedBoltAttr,
+                            myPlayer.attributes
+                          );
+
                           return (
                             <div className="target-selection-popup">
                               <h4>
@@ -1598,6 +1694,17 @@ function App() {
                                 <div>基礎傷害: 等於屬性等級</div>
                               </div>
 
+                              {activatedProfs.length > 0 && (
+                                <div className="activated-proficiencies">
+                                  <div className="prof-header">✨ 啟動專精效果</div>
+                                  {activatedProfs.map((prof, idx) => (
+                                    <div key={idx} className="prof-item">
+                                      {prof}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
                               <div className="target-buttons-horizontal">
                                 {gameInfo.players.map((player) => {
                                   // For single target attack, only allow furthest enemy
@@ -1608,7 +1715,7 @@ function App() {
                                   return (
                                     <button
                                       key={player.id}
-                                      className={`target-button ${
+                                      className={`target-button team-${player.team} ${
                                         isValidTarget ? "valid" : "disabled"
                                       }`}
                                       onClick={() => {

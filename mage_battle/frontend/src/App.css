@@ -2337,6 +2337,68 @@
   opacity: 0.95;
 }
 
+/* Team colors for target buttons */
+.target-button.team-A.valid {
+  background: linear-gradient(135deg, #3182ce, #2c5282);
+}
+
+.target-button.team-A.valid:hover {
+  box-shadow: 0 4px 8px rgba(49, 130, 206, 0.4);
+}
+
+.target-button.team-B.valid {
+  background: linear-gradient(135deg, #e53e3e, #9b2c2c);
+}
+
+.target-button.team-B.valid:hover {
+  box-shadow: 0 4px 8px rgba(229, 62, 62, 0.4);
+}
+
+.target-button.team-C.valid {
+  background: linear-gradient(135deg, #38a169, #22543d);
+}
+
+.target-button.team-C.valid:hover {
+  box-shadow: 0 4px 8px rgba(56, 161, 105, 0.4);
+}
+
+.target-button.team-D.valid {
+  background: linear-gradient(135deg, #d69e2e, #744210);
+}
+
+.target-button.team-D.valid:hover {
+  box-shadow: 0 4px 8px rgba(214, 158, 46, 0.4);
+}
+
+/* Activated Proficiencies Display */
+.activated-proficiencies {
+  background: #fef5e7;
+  border: 2px solid #f39c12;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+  box-shadow: 0 2px 4px rgba(243, 156, 18, 0.1);
+}
+
+.activated-proficiencies .prof-header {
+  font-weight: 700;
+  color: #d68910;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 2px solid #f39c12;
+  padding-bottom: 0.5rem;
+}
+
+.activated-proficiencies .prof-item {
+  color: #7d6608;
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 4px;
+  border-left: 3px solid #f39c12;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
   .game-layout {
