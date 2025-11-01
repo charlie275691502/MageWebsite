@@ -814,9 +814,13 @@ function App() {
     targets: number[]
   ) => {
     if (!gameId) return;
+    if (targets.length === 0) {
+      setError('必須選擇至少一個目標');
+      return;
+    }
     try {
       setLoading(true);
-      const result = await gameApi.playAttributeBolt(gameId, cardId, attr, targets.length > 0 ? targets : undefined);
+      const result = await gameApi.playAttributeBolt(gameId, cardId, attr, targets);
       addLog(result);
       setSelectedCard(null);
       setCardAction(null);

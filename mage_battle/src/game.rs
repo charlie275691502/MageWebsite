@@ -217,7 +217,7 @@ impl Game {
     /// 使用屬性彈 (C1-C6)
     /// Any card can be used to cast an attribute bolt by discarding it
     /// targets: 可選的目標玩家。如果未提供，默認為最遠敵人。如果風Lv5觸發，可自由選擇任何存活敵人。
-    pub fn play_attribute_bolt(&mut self, card_id: CardId, attr_type: AttributeType, targets: Option<Vec<PlayerId>>) -> Result<(), String> {
+    pub fn play_attribute_bolt(&mut self, card_id: CardId, attr_type: AttributeType, targets: Vec<PlayerId>) -> Result<(), String> {
         if self.turn_phase != TurnPhase::PlayCard {
             return Err("不是出牌階段".to_string());
         }
@@ -243,19 +243,12 @@ impl Game {
         // Create enchantments for proficiency calculation
         let enchantments = vec![attr_type];
 
-        // 決定目標
-        let target_ids = if let Some(provided_targets) = targets {
-            // 檢查風Lv5是否被觸發（允許自由選擇目標）
-            let wind_lv5_active = self.is_wind_lv5_triggered(current_id, &enchantments);
+        // 驗證提供的目標是否有效
+        // 檢查風Lv5是否被觸發（允許自由選擇目標）
+        let wind_lv5_active = self.is_wind_lv5_triggered(current_id, &enchantments);
 
-            // 驗證提供的目標是否有效
-            self.validate_bolt_targets(current_id, &provided_targets, wind_lv5_active)?
-        } else {
-            // 未提供目標，使用默認的最遠敵人
-            let target_id = self.get_furthest_alive_enemy(current_id)
-                .ok_or("沒有存活的敵人".to_string())?;
-            vec![target_id]
-        };
+        // 驗證提供的目標是否有效
+        let target_ids = self.validate_bolt_targets(current_id, &targets, wind_lv5_active)?;
 
         // 火Lv3: 所有屬性彈+1 (只對屬性彈適用)
         let base_damage = if self.players[current_id].attributes.fire >= 3 {
@@ -1294,7 +1287,7 @@ mod tests {
     }
 
     #[test]
-    fn test_effect_heal_capped_at_max() {
+    fn test_effect_heal_does_not_capped_at_max() {
         let mut game = setup_test_game();
         let target = 1;
 
@@ -1303,7 +1296,7 @@ mod tests {
 
         game.apply_effect(0, &EffectType::Heal(20), &[target], &[]).unwrap();
 
-        assert_eq!(game.players[target].hp, max_hp);
+        assert_eq!(game.players[target].hp, 65);
     }
 
     // === 護盾類效果測試 ===

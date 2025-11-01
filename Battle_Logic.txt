@@ -30,6 +30,7 @@ WIN CONDITION:
 HP (HEALTH POINTS):
   - Initial: 50 HP
   - Max: 50 HP
+  - Can heal over Max HP
   - If HP reaches 0: Player dies
 
 SHIELD:

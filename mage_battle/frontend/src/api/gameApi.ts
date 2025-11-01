@@ -123,7 +123,7 @@ export const gameApi = {
   },
 
   // Play attribute bolt (requires a card)
-  async playAttributeBolt(gameId: string, cardId: number, attribute: string, targets?: number[]): Promise<ActionResult> {
+  async playAttributeBolt(gameId: string, cardId: number, attribute: string, targets: number[]): Promise<ActionResult> {
     const response = await api.post<ApiResponse<ActionResult>>(
       `/api/game/${gameId}/play_bolt`,
       { card_id: cardId, attribute, targets }

@@ -183,7 +183,8 @@ impl Player {
         }
 
         let old_hp = self.hp;
-        self.hp = (self.hp + amount as i32).min(self.max_hp);
+        // self.hp = (self.hp + amount as i32).min(self.max_hp); Not Correct, don't limit healing
+        self.hp = (self.hp + amount as i32);
         (self.hp - old_hp) as u32
     }
 
