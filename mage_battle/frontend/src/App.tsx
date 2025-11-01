@@ -7,10 +7,70 @@ import {
   JoinRoomResponse,
   StartGameResponse,
 } from "./api/lobbyApi";
-import cardData from "./cardData.json";
+import cardsDataRaw from "./cards.json";
+import spellsDataRaw from "./spells.json";
 import "./App.css";
 
 type AttributeType = "Fire" | "Wood" | "Thunder" | "Water" | "Wind" | "Poison";
+
+// Spell data types
+interface CardEffect {
+  type: string;
+  params: (number | string)[];
+}
+
+interface CardSpell {
+  spell_id: string;
+  name: string;
+  cost: string;
+  description: string;
+  target_pool?: string;
+  effects?: CardEffect[];
+  is_attribute_bolt?: boolean;
+}
+
+// Card reference type
+interface CardReference {
+  id: number;
+  top_spell_id: string;
+  bottom_spell_id?: string | null;
+}
+
+// Full card data with spell details
+interface CardData {
+  id: number;
+  top_spell: CardSpell;
+  bottom_spell: CardSpell | null;
+}
+
+// Parse the JSON data
+const spellsMap = new Map<string, CardSpell>();
+(spellsDataRaw as any).spells.forEach((spell: CardSpell) => {
+  spellsMap.set(spell.spell_id, spell);
+});
+
+// Build full card data by resolving spell references
+const cardData: CardData[] = (cardsDataRaw as any).cards.map((cardRef: CardReference) => {
+  const topSpell = spellsMap.get(cardRef.top_spell_id);
+  const bottomSpell = cardRef.bottom_spell_id ? spellsMap.get(cardRef.bottom_spell_id) : null;
+
+  if (!topSpell) {
+    console.error(`Spell ${cardRef.top_spell_id} not found for card ${cardRef.id}`);
+  }
+
+  return {
+    id: cardRef.id,
+    top_spell: topSpell || {
+      spell_id: cardRef.top_spell_id,
+      name: "未知法術",
+      cost: "火1",
+      description: "錯誤：法術數據未找到",
+      target_pool: "Default",
+      effects: []
+    },
+    bottom_spell: bottomSpell || null
+  };
+});
 
 const attributeNames: Record<AttributeType, string> = {
   Fire: "火",
@@ -44,10 +104,10 @@ const attributeProficiency: Record<
 > = {
   fire: [
     { level: 3, description: "所有屬性彈+1" },
-    { level: 5, description: "回合開始時，對所有敵人造成１點傷害" },
+    { level: 5, description: "回合開始時，對所有敵人造成1點傷害" },
   ],
   wood: [
-    { level: 3, description: "減少１點生命並獲得１點護盾" },
+    { level: 3, description: "減少1點生命並獲得1點護盾" },
     { level: 5, description: "自己與隊友受到的卡片傷害-1" },
   ],
   thunder: [
@@ -55,8 +115,8 @@ const attributeProficiency: Record<
     { level: 5, description: "雷屬性卡片傷害+2 (合計+3)" },
   ],
   water: [
-    { level: 3, description: "使用水屬卡片時，回復自身１的生命" },
-    { level: 5, description: "使用水屬卡片時，回復自己與隊友１點生命" },
+    { level: 3, description: "使用水屬卡片時，回復自身1的生命" },
+    { level: 5, description: "使用水屬卡片時，回復自己與隊友1點生命" },
   ],
   wind: [
     { level: 2, description: "風屬性卡片攻擊的人這圈不能回復生命或獲得護盾" },
@@ -128,12 +188,21 @@ const getActivatedProficiencies = (
 
     proficiencies.forEach((prof) => {
       // Skip passive skills: Wood Lv5 and Fire Lv5
-      if ((attr === 'wood' && prof.level === 5) || (attr === 'fire' && prof.level === 5)) {
+      if (
+        (attr === "wood" && prof.level === 5) ||
+        (attr === "fire" && prof.level === 5)
+      ) {
         return;
       }
 
       if (playerLevel >= prof.level) {
-        activated.push(`${attributeNames[attr.charAt(0).toUpperCase() + attr.slice(1) as AttributeType]} Lv${prof.level}: ${prof.description}`);
+        activated.push(
+          `${
+            attributeNames[
+              (attr.charAt(0).toUpperCase() + attr.slice(1)) as AttributeType
+            ]
+          } Lv${prof.level}: ${prof.description}`
+        );
       }
     });
   });
@@ -150,23 +219,33 @@ const getActivatedProficienciesForBolt = (
   const attrLower = boltAttr.toLowerCase();
 
   // Fire Lv3 affects ALL attribute bolts (but don't add it twice for fire bolt)
-  if (playerAttributes.fire >= 3 && attrLower !== 'fire') {
-    activated.push(`火 Lv3: ${attributeProficiency.fire.find(p => p.level === 3)?.description}`);
+  if (playerAttributes.fire >= 3 && attrLower !== "fire") {
+    activated.push(
+      `火 Lv3: ${
+        attributeProficiency.fire.find((p) => p.level === 3)?.description
+      }`
+    );
   }
 
   // Check the specific bolt attribute's proficiencies
   const proficiencies = attributeProficiency[attrLower];
   if (proficiencies) {
-    const playerLevel = playerAttributes[attrLower as keyof typeof playerAttributes];
+    const playerLevel =
+      playerAttributes[attrLower as keyof typeof playerAttributes];
 
     proficiencies.forEach((prof) => {
       // Skip passive skills: Wood Lv5 and Fire Lv5
-      if ((attrLower === 'wood' && prof.level === 5) || (attrLower === 'fire' && prof.level === 5)) {
+      if (
+        (attrLower === "wood" && prof.level === 5) ||
+        (attrLower === "fire" && prof.level === 5)
+      ) {
         return;
       }
 
       if (playerLevel >= prof.level) {
-        activated.push(`${attributeNames[boltAttr]} Lv${prof.level}: ${prof.description}`);
+        activated.push(
+          `${attributeNames[boltAttr]} Lv${prof.level}: ${prof.description}`
+        );
       }
     });
   }
@@ -186,7 +265,6 @@ const extractEnchantments = (cost: string): string[] => {
     })
     .filter(Boolean);
 };
-
 
 // Random username generator for testing
 const generateRandomUsername = () => {
@@ -1370,7 +1448,7 @@ function App() {
                             <div className="popup-section">
                               <strong>上: {cardInfo.top_spell.name}</strong>
                               <div>消耗: {cardInfo.top_spell.cost}</div>
-                              <div>效果: {cardInfo.top_spell.effect}</div>
+                              <div>效果: {cardInfo.top_spell.description}</div>
                             </div>
                             {cardInfo.bottom_spell && (
                               <div className="popup-section">
@@ -1378,7 +1456,9 @@ function App() {
                                   下: {cardInfo.bottom_spell.name}
                                 </strong>
                                 <div>消耗: {cardInfo.bottom_spell.cost}</div>
-                                <div>效果: {cardInfo.bottom_spell.effect}</div>
+                                <div>
+                                  效果: {cardInfo.bottom_spell.description}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -1507,7 +1587,7 @@ function App() {
                                     需求: {cardInfo.top_spell.cost}
                                   </div>
                                   <div className="spell-effect">
-                                    {cardInfo.top_spell.effect}
+                                    {cardInfo.top_spell.description}
                                   </div>
                                   <button
                                     onClick={() => setCardAction("top")}
@@ -1540,7 +1620,7 @@ function App() {
                                       需求: {cardInfo.bottom_spell.cost}
                                     </div>
                                     <div className="spell-effect">
-                                      {cardInfo.bottom_spell.effect}
+                                      {cardInfo.bottom_spell.description}
                                     </div>
                                     <button
                                       onClick={() => setCardAction("bottom")}
@@ -1649,12 +1729,14 @@ function App() {
                               <h4>選擇目標 - {spell.name}</h4>
                               <div className="spell-info-compact">
                                 <div>需求: {spell.cost}</div>
-                                <div>效果: {spell.effect}</div>
+                                <div>效果: {spell.description}</div>
                               </div>
 
                               {activatedProfs.length > 0 && (
                                 <div className="activated-proficiencies">
-                                  <div className="prof-header">✨ 啟動專精效果</div>
+                                  <div className="prof-header">
+                                    ✨ 啟動專精效果
+                                  </div>
                                   {activatedProfs.map((prof, idx) => (
                                     <div key={idx} className="prof-item">
                                       {prof}
@@ -1725,10 +1807,11 @@ function App() {
                             }
                           });
 
-                          const activatedProfs = getActivatedProficienciesForBolt(
-                            selectedBoltAttr,
-                            myPlayer.attributes
-                          );
+                          const activatedProfs =
+                            getActivatedProficienciesForBolt(
+                              selectedBoltAttr,
+                              myPlayer.attributes
+                            );
 
                           return (
                             <div className="target-selection-popup">
@@ -1749,7 +1832,9 @@ function App() {
 
                               {activatedProfs.length > 0 && (
                                 <div className="activated-proficiencies">
-                                  <div className="prof-header">✨ 啟動專精效果</div>
+                                  <div className="prof-header">
+                                    ✨ 啟動專精效果
+                                  </div>
                                   {activatedProfs.map((prof, idx) => (
                                     <div key={idx} className="prof-item">
                                       {prof}

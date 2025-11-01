@@ -1,9 +1,54 @@
 use crate::attribute::AttributeType;
-use crate::effect::{SpellEffect, TargetPool};
+use crate::effect::{SpellEffect, TargetPool, EffectType};
+use crate::buff::BuffType;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 /// 卡片編號（1-60）
 pub type CardId = u32;
+
+/// JSON format for card effects
+#[derive(Debug, Clone, Deserialize)]
+struct JsonEffect {
+    #[serde(rename = "type")]
+    effect_type: String,
+    params: Vec<serde_json::Value>,
+}
+
+/// JSON format for spell data
+#[derive(Debug, Clone, Deserialize)]
+struct JsonSpell {
+    spell_id: String,
+    name: String,
+    cost: String,
+    description: String,
+    #[serde(default)]
+    target_pool: Option<String>,
+    #[serde(default)]
+    effects: Option<Vec<JsonEffect>>,
+    #[serde(default)]
+    is_attribute_bolt: bool,
+}
+
+/// JSON format for card data (referencing spell IDs)
+#[derive(Debug, Clone, Deserialize)]
+struct JsonCard {
+    id: u32,
+    top_spell_id: String,
+    bottom_spell_id: Option<String>,
+}
+
+/// Root JSON structure for cards
+#[derive(Debug, Deserialize)]
+struct CardsData {
+    cards: Vec<JsonCard>,
+}
+
+/// Root JSON structure for spells
+#[derive(Debug, Deserialize)]
+struct SpellsData {
+    spells: Vec<JsonSpell>,
+}
 
 /// 法術卡片（雙面）
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -114,32 +159,6 @@ impl SpellSide {
     }
 }
 
-/// 屬性彈（基礎攻擊）
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AttributeBolt {
-    pub attribute: AttributeType,
-    pub level: u8,  // 屬性等級（1-5）
-}
-
-impl AttributeBolt {
-    pub fn new(attribute: AttributeType, level: u8) -> Self {
-        Self {
-            attribute,
-            level: level.min(5),
-        }
-    }
-
-    /// 獲取基礎傷害（等於屬性等級）
-    pub fn base_damage(&self) -> u32 {
-        self.level as u32
-    }
-
-    /// 獲取名稱
-    pub fn name(&self) -> String {
-        format!("{}屬性彈", self.attribute.to_string())
-    }
-}
-
 /// 卡片資料庫（從Excel數據生成）
 pub struct CardDatabase {
     cards: Vec<Card>,
@@ -152,38 +171,261 @@ impl CardDatabase {
         }
     }
 
-    /// 加載所有卡片（這裡先創建一些測試卡片，實際數據需要從Excel解析）
+    /// Parse cost string like "火2" or "水4 雷2" into requirements
+    fn parse_cost(cost: &str) -> Vec<(AttributeType, u8)> {
+        if cost.is_empty() {
+            return vec![];
+        }
+
+        let attr_map: std::collections::HashMap<char, AttributeType> = [
+            ('火', AttributeType::Fire),
+            ('木', AttributeType::Wood),
+            ('雷', AttributeType::Thunder),
+            ('水', AttributeType::Water),
+            ('風', AttributeType::Wind),
+            ('毒', AttributeType::Poison),
+        ].iter().cloned().collect();
+
+        let mut requirements = Vec::new();
+        let parts: Vec<&str> = cost.split_whitespace().collect();
+
+        for part in parts {
+            let chars: Vec<char> = part.chars().collect();
+            if chars.len() >= 2 {
+                if let Some(&attr_type) = attr_map.get(&chars[0]) {
+                    if let Some(level) = chars[1..].iter().collect::<String>().parse::<u8>().ok() {
+                        requirements.push((attr_type, level));
+                    }
+                }
+            }
+        }
+
+        requirements
+    }
+
+    /// Parse target pool string
+    fn parse_target_pool(target: &str) -> TargetPool {
+        match target {
+            "Default" => TargetPool::Default,
+            "Self_" => TargetPool::Self_,
+            "Enemies" => TargetPool::Enemies,
+            "Allies" => TargetPool::Allies,
+            "All" => TargetPool::All,
+            "AllOtherPlayers" => TargetPool::AllOtherPlayers,
+            "ChooseFromEnemies" => TargetPool::ChooseFromEnemies,
+            "ChooseFromAllies" => TargetPool::ChooseFromAllies,
+            "ChooseFromAll" => TargetPool::ChooseFromAll,
+            _ => TargetPool::Default,
+        }
+    }
+
+    /// Parse single effect from JSON
+    fn parse_effect(json_effect: &JsonEffect) -> Option<EffectType> {
+        let effect_type = json_effect.effect_type.as_str();
+        let params = &json_effect.params;
+
+        let get_u32 = |idx: usize| -> Option<u32> {
+            params.get(idx)?.as_u64().map(|v| v as u32)
+        };
+
+        let get_buff = |idx: usize| -> Option<BuffType> {
+            let s = params.get(idx)?.as_str()?;
+            match s {
+                "Immune" => Some(BuffType::Immune),
+                "Invincible" => Some(BuffType::Invincible),
+                "Paralysis" => Some(BuffType::Paralysis),
+                "Seal" => Some(BuffType::Seal),
+                "Silent" => Some(BuffType::Silent),
+                "MasterDisable" => Some(BuffType::MasterDisable),
+                "DefenseInvalidation" => Some(BuffType::DefenseInvalidation),
+                "Confuse" => Some(BuffType::Confuse),
+                "HealthDrain" => Some(BuffType::HealthDrain),
+                "HealthDrainTarget" => Some(BuffType::HealthDrainTarget),
+                "Regeneration" => Some(BuffType::Regeneration),
+                "BurningOut" => Some(BuffType::BurningOut),
+                "GuardWoodCarving" => Some(BuffType::GuardWoodCarving),
+                _ => None,
+            }
+        };
+
+        match effect_type {
+            // Damage effects
+            "Damage" => Some(EffectType::Damage(get_u32(0)?)),
+            "DoubleDamage" => Some(EffectType::DoubleDamage(get_u32(0)?)),
+            "TripleDamage" => Some(EffectType::TripleDamage(get_u32(0)?)),
+            "IncreaseDamage" => Some(EffectType::IncreaseDamage(get_u32(0)?)),
+            "SubMTDDamage" => Some(EffectType::SubMTDDamage(get_u32(0)?)),
+            "ShieldDDamage" => Some(EffectType::ShieldDDamage(get_u32(0)?)),
+
+            // Attribute resets
+            "FlameDeallocation" => Some(EffectType::FlameDeallocation),
+            "WoodDeallocation" => Some(EffectType::WoodDeallocation),
+            "SparkDeallocation" => Some(EffectType::SparkDeallocation),
+            "WaterDeallocation" => Some(EffectType::WaterDeallocation),
+
+            // Healing
+            "Heal" => Some(EffectType::Heal(get_u32(0)?)),
+            "HealSelf" => Some(EffectType::HealSelf(get_u32(0)?)),
+
+            // Shield
+            "Shield" => Some(EffectType::Shield(get_u32(0)?)),
+            "ShieldSelf" => Some(EffectType::ShieldSelf(get_u32(0)?)),
+            "DestroyAllShield" => Some(EffectType::DestroyAllShield),
+
+            // Buffs
+            "BuffOne" => Some(EffectType::BuffOne(get_buff(0)?)),
+            "BuffForever" => Some(EffectType::BuffForever(get_buff(0)?)),
+            "BuffSelfOne" => Some(EffectType::BuffSelfOne(get_buff(0)?)),
+            "BuffSelfTwo" => Some(EffectType::BuffSelfTwo(get_buff(0)?)),
+            "BuffSelfFour" => Some(EffectType::BuffSelfFour(get_buff(0)?)),
+            "BuffSelfSix" => Some(EffectType::BuffSelfSix(get_buff(0)?)),
+            "HealthDrain" => Some(EffectType::HealthDrain),
+            "GuardWoodCarving" => Some(EffectType::GuardWoodCarving(get_buff(0)?)),
+            "RemoveAllBuff" => Some(EffectType::RemoveAllBuff),
+
+            // Attribute operations
+            "GainAPSelf" => Some(EffectType::GainAPSelf(get_u32(0)?)),
+            "MoveAP" => Some(EffectType::MoveAP(get_u32(0)?)),
+            "MoveAPSelf" => Some(EffectType::MoveAPSelf(get_u32(0)?)),
+            "RemoveMainMTAP" => Some(EffectType::RemoveMainMTAP(get_u32(0)?)),
+            "RemoveAP" => Some(EffectType::RemoveAP(get_u32(0)?)),
+
+            // Card operations
+            "GetAoyiSelf" => Some(EffectType::GetAoyiSelf),
+            "RandomDiscard" => Some(EffectType::RandomDiscard),
+            "ViewTopDrawPile" => Some(EffectType::ViewTopDrawPile),
+            "ViewAndDiscard" => Some(EffectType::ViewAndDiscard(get_u32(0)?)),
+            "DiscardAndDraw" => Some(EffectType::DiscardAndDraw),
+
+            // Special
+            "Dearouse" => Some(EffectType::Dearouse),
+            "AddOneMagicType" => Some(EffectType::AddOneMagicType),
+
+            _ => None,
+        }
+    }
+
+    /// Parse JSON spell to SpellSide
+    fn parse_spell(json_spell: &JsonSpell) -> Option<SpellSide> {
+        let target_pool = json_spell.target_pool
+            .as_ref()
+            .map(|s| Self::parse_target_pool(s))
+            .unwrap_or(TargetPool::Default);
+
+        let effects = json_spell.effects.as_ref()?;
+
+        if effects.is_empty() {
+            return None;
+        }
+
+        let effect1 = Self::parse_effect(&effects[0])?;
+        let effect2 = effects.get(1).and_then(|e| Self::parse_effect(e));
+
+        let mut spell_effect = SpellEffect::new(target_pool, effect1);
+        if let Some(e2) = effect2 {
+            spell_effect = spell_effect.with_second_effect(e2);
+        }
+
+        Some(SpellSide::new(
+            json_spell.spell_id.clone(),
+            json_spell.name.clone(),
+            Self::parse_cost(&json_spell.cost),
+            spell_effect,
+        ))
+    }
+
+    /// 加載所有卡片從 JSON 文件
     fn load_cards() -> Vec<Card> {
-        use crate::effect::{SpellEffect, TargetPool, EffectType};
+        // Load spells first
+        let spells_json = include_str!("../spells.json");
+        let spells_data: SpellsData = match serde_json::from_str(spells_json) {
+            Ok(data) => data,
+            Err(e) => {
+                eprintln!("Failed to parse spells.json: {}", e);
+                return Self::load_fallback_cards();
+            }
+        };
+
+        // Build spell lookup map
+        let mut spell_map = std::collections::HashMap::new();
+        for json_spell in spells_data.spells {
+            if let Some(spell) = Self::parse_spell(&json_spell) {
+                spell_map.insert(json_spell.spell_id.clone(), spell);
+            }
+        }
+
+        // Load cards
+        let cards_json = include_str!("../cards.json");
+        let cards_data: CardsData = match serde_json::from_str(cards_json) {
+            Ok(data) => data,
+            Err(e) => {
+                eprintln!("Failed to parse cards.json: {}", e);
+                return Self::load_fallback_cards();
+            }
+        };
 
         let mut cards = Vec::new();
 
-        // 創建60張測試卡片
-        for i in 1..=60 {
-            // 簡單的測試法術
+        for json_card in cards_data.cards {
+            // Look up top spell
+            let top_spell = match spell_map.get(&json_card.top_spell_id) {
+                Some(spell) => spell.clone(),
+                None => {
+                    eprintln!("Spell {} not found for card {}", json_card.top_spell_id, json_card.id);
+                    // Fallback
+                    SpellSide::new(
+                        json_card.top_spell_id.clone(),
+                        format!("未知法術{}", json_card.top_spell_id),
+                        vec![(AttributeType::Fire, 1)],
+                        SpellEffect::new(TargetPool::Default, EffectType::Damage(2)),
+                    )
+                }
+            };
+
+            // Look up bottom spell if exists
+            let bottom_spell = json_card.bottom_spell_id
+                .and_then(|spell_id| spell_map.get(&spell_id).cloned());
+
+            cards.push(Card::new(json_card.id, top_spell, bottom_spell));
+        }
+
+        // Fill remaining cards with placeholders if less than 60
+        for i in (cards.len() as u32 + 1)..=60 {
             let top_spell = SpellSide::new(
                 format!("T{}", i),
                 format!("測試法術{}", i),
-                vec![(AttributeType::Fire, 1)],  // 需要火1
-                SpellEffect::new(
-                    TargetPool::Default,
-                    EffectType::Damage(2)
-                ),
+                vec![(AttributeType::Fire, 1)],
+                SpellEffect::new(TargetPool::Default, EffectType::Damage(2)),
             );
 
-            // 一半的卡片有底部法術，一半只有頂部
+            cards.push(Card::new(i, top_spell, None));
+        }
+
+        cards.sort_by_key(|c| c.id);
+        cards
+    }
+
+    /// Fallback card loading if JSON parsing fails
+    fn load_fallback_cards() -> Vec<Card> {
+        let mut cards = Vec::new();
+
+        for i in 1..=60 {
+            let top_spell = SpellSide::new(
+                format!("T{}", i),
+                format!("測試法術{}", i),
+                vec![(AttributeType::Fire, 1)],
+                SpellEffect::new(TargetPool::Default, EffectType::Damage(2)),
+            );
+
             let bottom_spell = if i % 2 == 0 {
                 Some(SpellSide::new(
                     format!("B{}", i),
                     format!("測試法術{}B", i),
-                    vec![(AttributeType::Wood, 1)],  // 需要木1
-                    SpellEffect::new(
-                        TargetPool::Default,
-                        EffectType::Damage(3)
-                    ),
+                    vec![(AttributeType::Wood, 1)],
+                    SpellEffect::new(TargetPool::Default, EffectType::Damage(3)),
                 ))
             } else {
-                None  // 單面強力卡
+                None
             };
 
             cards.push(Card::new(i, top_spell, bottom_spell));
@@ -253,5 +495,43 @@ mod tests {
         attrs.set(AttributeType::Wind, 5);
 
         assert!(!card.can_play(CardSide::Top, &attrs));  // A面無法使用
+    }
+
+    #[test]
+    fn test_load_cards_from_json() {
+        let db = CardDatabase::new();
+        let cards = db.get_all_cards();
+
+        // Should have 60 cards total (8 from JSON + 52 placeholders)
+        assert_eq!(cards.len(), 60, "Should have 60 cards total");
+
+        // Test card 1 (A1 炎爆 + B33 御者)
+        let card1 = db.get_card(1).expect("Card 1 should exist");
+        assert_eq!(card1.top_spell.name, "炎爆");
+        assert_eq!(card1.top_spell.requirements, vec![(AttributeType::Fire, 1)]);
+
+        // Verify the effect is IncreaseDamage(2)
+        match &card1.top_spell.effect.effect1 {
+            EffectType::IncreaseDamage(val) => assert_eq!(val, &2),
+            _ => panic!("Expected IncreaseDamage effect"),
+        }
+
+        // Test bottom spell exists
+        let bottom = card1.bottom_spell.as_ref().expect("Card 1 should have bottom spell");
+        assert_eq!(bottom.name, "御者");
+        assert_eq!(bottom.requirements, vec![(AttributeType::Wind, 5)]);
+
+        // Test card 3 (A2 火球 + B30 隨風)
+        let card3 = db.get_card(3).expect("Card 3 should exist");
+        assert_eq!(card3.top_spell.name, "火球");
+
+        // Verify the effect is Damage(5)
+        match &card3.top_spell.effect.effect1 {
+            EffectType::Damage(val) => assert_eq!(val, &5),
+            _ => panic!("Expected Damage effect"),
+        }
+
+        println!("✅ Successfully loaded and parsed cards from cards.json");
+        println!("Total cards loaded: {}", cards.len());
     }
 }

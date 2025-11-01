@@ -5,13 +5,13 @@
       "spell_id": "A1",
       "name": "炎爆",
       "cost": "火1",
-      "effect": "造成屬性等級＋２點傷害"
+      "effect": "造成屬性等級+2點傷害"
     },
     "bottom_spell": {
       "spell_id": "B33",
       "name": "御者",
       "cost": "風5",
-      "effect": "６點傷害。獲得２個屬性點"
+      "effect": "6點傷害。獲得2個屬性點"
     }
   },
   {
@@ -20,13 +20,13 @@
       "spell_id": "A1",
       "name": "炎爆",
       "cost": "火1",
-      "effect": "造成屬性等級＋２點傷害"
+      "effect": "造成屬性等級+2點傷害"
     },
     "bottom_spell": {
       "spell_id": "B36",
       "name": "詭語",
       "cost": "毒4",
-      "effect": "４點傷害。可重新分配對手２個屬性點。"
+      "effect": "4點傷害。可重新分配對手2個屬性點。"
     }
   },
   {
@@ -35,13 +35,13 @@
       "spell_id": "A2",
       "name": "火球",
       "cost": "火2",
-      "effect": "造成５點傷害"
+      "effect": "造成5點傷害"
     },
     "bottom_spell": {
       "spell_id": "B30",
       "name": "隨風",
       "cost": "風3",
-      "effect": "３點傷害。可捨棄任意手牌，再抽相同數量"
+      "effect": "3點傷害。可捨棄任意手牌，再抽相同數量"
     }
   },
   {
@@ -50,13 +50,13 @@
       "spell_id": "A2",
       "name": "火球",
       "cost": "火2",
-      "effect": "造成５點傷害"
+      "effect": "造成5點傷害"
     },
     "bottom_spell": {
       "spell_id": "B34",
       "name": "混合射彈。毒",
       "cost": "毒2",
-      "effect": "５點傷害。同時發動另一主要屬性的精通效果"
+      "effect": "5點傷害。同時發動另一主要屬性的精通效果"
     }
   },
   {
@@ -65,13 +65,13 @@
       "spell_id": "A2",
       "name": "火球",
       "cost": "火2",
-      "effect": "造成５點傷害"
+      "effect": "造成5點傷害"
     },
     "bottom_spell": {
       "spell_id": "B24",
       "name": "應變術式。水",
       "cost": "水4 雷2",
-      "effect": "所有玩家回復３點生命。返還自身所有已分配的水屬性點"
+      "effect": "所有玩家回復3點生命。返還自身所有已分配的水屬性點"
     }
   },
   {
@@ -80,13 +80,13 @@
       "spell_id": "A3",
       "name": "大火球",
       "cost": "火3",
-      "effect": "造成７點傷害"
+      "effect": "造成7點傷害"
     },
     "bottom_spell": {
       "spell_id": "B17",
       "name": "短路",
       "cost": "雷4 水2",
-      "effect": "對同一玩家造成１點傷害*３次"
+      "effect": "對同一玩家造成1點傷害*3次"
     }
   },
   {
@@ -95,13 +95,13 @@
       "spell_id": "A3",
       "name": "大火球",
       "cost": "火3",
-      "effect": "造成７點傷害"
+      "effect": "造成7點傷害"
     },
     "bottom_spell": {
       "spell_id": "B10",
       "name": "木牆術",
       "cost": "木4 水2",
-      "effect": "指定一人獲得１０點護盾"
+      "effect": "指定一人獲得10點護盾"
     }
   },
   {
@@ -110,13 +110,13 @@
       "spell_id": "A3",
       "name": "大火球",
       "cost": "火3",
-      "effect": "造成７點傷害"
+      "effect": "造成7點傷害"
     },
     "bottom_spell": {
       "spell_id": "B14",
       "name": "吸血藤",
       "cost": "木4 毒4",
-      "effect": "造成６點傷害。移除對手一個屬性點"
+      "effect": "造成6點傷害。移除對手一個屬性點"
     }
   },
   {
@@ -125,13 +125,13 @@
       "spell_id": "A3",
       "name": "大火球",
       "cost": "火3",
-      "effect": "造成７點傷害"
+      "effect": "造成7點傷害"
     },
     "bottom_spell": {
       "spell_id": "B26",
       "name": "水元素分身",
       "cost": "水4 風4",
-      "effect": "造成７點傷害。賦予自身「化身」一回合"
+      "effect": "造成7點傷害。賦予自身「化身」一回合"
     }
   },
   {
@@ -140,13 +140,13 @@
       "spell_id": "A4",
       "name": "炙炎爆彈",
       "cost": "火4",
-      "effect": "造成８點傷害"
+      "effect": "造成8點傷害"
     },
     "bottom_spell": {
       "spell_id": "B13",
       "name": "孢子擴散",
       "cost": "木4 毒2",
-      "effect": "造成５點傷害。獲得５點護盾"
+      "effect": "造成5點傷害。獲得5點護盾"
     }
   },
   {
@@ -155,13 +155,13 @@
       "spell_id": "A4",
       "name": "炙炎爆彈",
       "cost": "火4",
-      "effect": "造成８點傷害"
+      "effect": "造成8點傷害"
     },
     "bottom_spell": {
       "spell_id": "B27",
       "name": "還原反應",
       "cost": "水4 毒2",
-      "effect": "移除一位玩家２個主要屬性點並隨機捨棄其一張手牌。將其角色改為未解放狀態"
+      "effect": "移除一位玩家2個主要屬性點並隨機捨棄其一張手牌。將其角色改為未解放狀態"
     }
   },
   {
@@ -170,13 +170,13 @@
       "spell_id": "A4",
       "name": "炙炎爆彈",
       "cost": "火4",
-      "effect": "造成８點傷害"
+      "effect": "造成8點傷害"
     },
     "bottom_spell": {
       "spell_id": "B11",
       "name": "葉舞",
       "cost": "木4 風2",
-      "effect": "造成６點傷害。獲得２點護盾"
+      "effect": "造成6點傷害。獲得2點護盾"
     }
   },
   {
@@ -185,13 +185,13 @@
       "spell_id": "A4",
       "name": "炙炎爆彈",
       "cost": "火4",
-      "effect": "造成８點傷害"
+      "effect": "造成8點傷害"
     },
     "bottom_spell": {
       "spell_id": "B25",
       "name": "雨幕",
       "cost": "水4 風2",
-      "effect": "造成５點傷害。回復自己２點生命"
+      "effect": "造成5點傷害。回復自己2點生命"
     }
   },
   {
@@ -200,7 +200,7 @@
       "spell_id": "A5",
       "name": "奧義：集火柱",
       "cost": "火5",
-      "effect": "造成１２點傷害"
+      "effect": "造成12點傷害"
     },
     "bottom_spell": null
   },
@@ -220,7 +220,7 @@
       "spell_id": "A7",
       "name": "木葬",
       "cost": "木1",
-      "effect": "造成屬性等級＋２點傷害"
+      "effect": "造成屬性等級+2點傷害"
     },
     "bottom_spell": {
       "spell_id": "B31",
@@ -235,13 +235,13 @@
       "spell_id": "A7",
       "name": "木葬",
       "cost": "木1",
-      "effect": "造成屬性等級＋２點傷害"
+      "effect": "造成屬性等級+2點傷害"
     },
     "bottom_spell": {
       "spell_id": "B32",
       "name": "應變術式。疾",
       "cost": "風4",
-      "effect": "４點傷害。可重新分配自己３個屬性點"
+      "effect": "4點傷害。可重新分配自己3個屬性點"
     }
   },
   {
@@ -250,13 +250,13 @@
       "spell_id": "A8",
       "name": "葉斬",
       "cost": "木2",
-      "effect": "造成５點傷害"
+      "effect": "造成5點傷害"
     },
     "bottom_spell": {
       "spell_id": "B35",
       "name": "誤導",
       "cost": "毒3",
-      "effect": "３點傷害。檢視對手手牌，強制捨棄指定一張，後對手抽一張牌"
+      "effect": "3點傷害。檢視對手手牌，強制捨棄指定一張，後對手抽一張牌"
     }
   },
   {
@@ -265,13 +265,13 @@
       "spell_id": "A8",
       "name": "葉斬",
       "cost": "木2",
-      "effect": "造成５點傷害"
+      "effect": "造成5點傷害"
     },
     "bottom_spell": {
       "spell_id": "B29",
       "name": "混和射彈。風",
       "cost": "風2",
-      "effect": "５點傷害。同時發動另一主要屬性的精通效果"
+      "effect": "5點傷害。同時發動另一主要屬性的精通效果"
     }
   },
   {
@@ -280,13 +280,13 @@
       "spell_id": "A8",
       "name": "葉斬",
       "cost": "木2",
-      "effect": "造成５點傷害"
+      "effect": "造成5點傷害"
     },
     "bottom_spell": {
       "spell_id": "B22",
       "name": "血液沸騰",
       "cost": "水4 火2",
-      "effect": "此卡傷害為目標輔助屬性點數之和＊２"
+      "effect": "此卡傷害為目標輔助屬性點數之和＊2"
     }
   },
   {
@@ -295,13 +295,13 @@
       "spell_id": "A9",
       "name": "飛葉斬",
       "cost": "木3",
-      "effect": "造成７點傷害"
+      "effect": "造成7點傷害"
     },
     "bottom_spell": {
       "spell_id": "B15",
       "name": "火花",
       "cost": "雷4 火2",
-      "effect": "對兩個敵方玩家造成１點傷害*２次"
+      "effect": "對兩個敵方玩家造成1點傷害*2次"
     }
   },
   {
@@ -310,13 +310,13 @@
       "spell_id": "A9",
       "name": "飛葉斬",
       "cost": "木3",
-      "effect": "造成７點傷害"
+      "effect": "造成7點傷害"
     },
     "bottom_spell": {
       "spell_id": "B3",
       "name": "應變術式。火",
       "cost": "火4 水2",
-      "effect": "對所有玩家造成２點傷害。返還自身所有已分配的火屬性點"
+      "effect": "對所有玩家造成2點傷害。返還自身所有已分配的火屬性點"
     }
   },
   {
@@ -325,13 +325,13 @@
       "spell_id": "A9",
       "name": "飛葉斬",
       "cost": "木3",
-      "effect": "造成７點傷害"
+      "effect": "造成7點傷害"
     },
     "bottom_spell": {
       "spell_id": "B21",
       "name": "元素真空",
       "cost": "雷4 毒4",
-      "effect": "造成７點傷害。賦予目標「元素剝離」一回合"
+      "effect": "造成7點傷害。賦予目標「元素剝離」一回合"
     }
   },
   {
@@ -340,13 +340,13 @@
       "spell_id": "A9",
       "name": "飛葉斬",
       "cost": "木3",
-      "effect": "造成７點傷害"
+      "effect": "造成7點傷害"
     },
     "bottom_spell": {
       "spell_id": "B5",
       "name": "火龍捲",
       "cost": "火4 風4",
-      "effect": "對兩個敵人各造成６點傷害"
+      "effect": "對兩個敵人各造成6點傷害"
     }
   },
   {
@@ -355,13 +355,13 @@
       "spell_id": "A10",
       "name": "飛葉連斬",
       "cost": "木4",
-      "effect": "造成８點傷害"
+      "effect": "造成8點傷害"
     },
     "bottom_spell": {
       "spell_id": "B20",
       "name": "元素解離",
       "cost": "雷4 毒2",
-      "effect": "造成５點傷害。賦予目標「封印」一回合"
+      "effect": "造成5點傷害。賦予目標「封印」一回合"
     }
   },
   {
@@ -370,13 +370,13 @@
       "spell_id": "A10",
       "name": "飛葉連斬",
       "cost": "木4",
-      "effect": "造成８點傷害"
+      "effect": "造成8點傷害"
     },
     "bottom_spell": {
       "spell_id": "B6",
       "name": "快速反應",
       "cost": "火4 毒2",
-      "effect": "造成６點傷害。檢視公牌最上面的卡片，可以將它捨棄或放回去"
+      "effect": "造成6點傷害。檢視公牌最上面的卡片，可以將它捨棄或放回去"
     }
   },
   {
@@ -385,13 +385,13 @@
       "spell_id": "A10",
       "name": "飛葉連斬",
       "cost": "木4",
-      "effect": "造成８點傷害"
+      "effect": "造成8點傷害"
     },
     "bottom_spell": {
       "spell_id": "B18",
       "name": "落雷",
       "cost": "雷4 風2",
-      "effect": "造成７點傷害"
+      "effect": "造成7點傷害"
     }
   },
   {
@@ -400,13 +400,13 @@
       "spell_id": "A10",
       "name": "飛葉連斬",
       "cost": "木4",
-      "effect": "造成８點傷害"
+      "effect": "造成8點傷害"
     },
     "bottom_spell": {
       "spell_id": "B4",
       "name": "氣爆",
       "cost": "火4 風2",
-      "effect": "對兩個敵人各造成４點傷害"
+      "effect": "對兩個敵人各造成4點傷害"
     }
   },
   {
@@ -415,7 +415,7 @@
       "spell_id": "A11",
       "name": "奧義：枯藤",
       "cost": "木5",
-      "effect": "造成１２點傷害"
+      "effect": "造成12點傷害"
     },
     "bottom_spell": null
   },
@@ -435,7 +435,7 @@
       "spell_id": "A13",
       "name": "雷迎",
       "cost": "雷1",
-      "effect": "造成屬性等級＋２點傷害"
+      "effect": "造成屬性等級+2點傷害"
     },
     "bottom_spell": {
       "spell_id": "B31",
@@ -450,13 +450,13 @@
       "spell_id": "A13",
       "name": "雷迎",
       "cost": "雷1",
-      "effect": "造成屬性等級＋２點傷害"
+      "effect": "造成屬性等級+2點傷害"
     },
     "bottom_spell": {
       "spell_id": "B36",
       "name": "詭語",
       "cost": "毒4",
-      "effect": "４點傷害。可重新分配對手２個屬性點。"
+      "effect": "4點傷害。可重新分配對手2個屬性點。"
     }
   },
   {
@@ -465,13 +465,13 @@
       "spell_id": "A14",
       "name": "雷槍",
       "cost": "雷2",
-      "effect": "造成５點傷害"
+      "effect": "造成5點傷害"
     },
     "bottom_spell": {
       "spell_id": "B30",
       "name": "隨風",
       "cost": "風3",
-      "effect": "３點傷害。可捨棄任意手牌，再抽相同數量"
+      "effect": "3點傷害。可捨棄任意手牌，再抽相同數量"
     }
   },
   {
@@ -480,13 +480,13 @@
       "spell_id": "A14",
       "name": "雷槍",
       "cost": "雷2",
-      "effect": "造成５點傷害"
+      "effect": "造成5點傷害"
     },
     "bottom_spell": {
       "spell_id": "B34",
       "name": "混合射彈。毒",
       "cost": "毒2",
-      "effect": "５點傷害。同時發動另一主要屬性的精通效果"
+      "effect": "5點傷害。同時發動另一主要屬性的精通效果"
     }
   },
   {
@@ -495,13 +495,13 @@
       "spell_id": "A14",
       "name": "雷槍",
       "cost": "雷2",
-      "effect": "造成５點傷害"
+      "effect": "造成5點傷害"
     },
     "bottom_spell": {
       "spell_id": "B23",
       "name": "包紮",
       "cost": "水4 木2",
-      "effect": "隊伍上兩人獲得３點護盾並回復３點生命"
+      "effect": "隊伍上兩人獲得3點護盾並回復3點生命"
     }
   },
   {
@@ -510,7 +510,7 @@
       "spell_id": "A15",
       "name": "雷槍矢",
       "cost": "雷3",
-      "effect": "造成７點傷害"
+      "effect": "造成7點傷害"
     },
     "bottom_spell": {
       "spell_id": "B8",
@@ -525,13 +525,13 @@
       "spell_id": "A15",
       "name": "雷槍矢",
       "cost": "雷3",
-      "effect": "造成７點傷害"
+      "effect": "造成7點傷害"
     },
     "bottom_spell": {
       "spell_id": "B1",
       "name": "混和燃料",
       "cost": "火4 木2",
-      "effect": "造成９點傷害"
+      "effect": "造成9點傷害"
     }
   },
   {
@@ -540,13 +540,13 @@
       "spell_id": "A15",
       "name": "雷槍矢",
       "cost": "雷3",
-      "effect": "造成７點傷害"
+      "effect": "造成7點傷害"
     },
     "bottom_spell": {
       "spell_id": "B28",
       "name": "寄生水蛭",
       "cost": "水4 毒4",
-      "effect": "賦予目標永久「生命汲取」。每個自己回合開始時對其造成１點傷害並回復１點生命。視為一個負面狀態"
+      "effect": "賦予目標永久「生命汲取」。每個自己回合開始時對其造成1點傷害並回復1點生命。視為一個負面狀態"
     }
   },
   {
@@ -555,13 +555,13 @@
       "spell_id": "A15",
       "name": "雷槍矢",
       "cost": "雷3",
-      "effect": "造成７點傷害"
+      "effect": "造成7點傷害"
     },
     "bottom_spell": {
       "spell_id": "B12",
       "name": "木元素分身",
       "cost": "木4 風4",
-      "effect": "造成７點傷害。賦予自身「化身」一回合"
+      "effect": "造成7點傷害。賦予自身「化身」一回合"
     }
   },
   {
@@ -570,13 +570,13 @@
       "spell_id": "A16",
       "name": "閃電雷擊",
       "cost": "雷4",
-      "effect": "造成８點傷害"
+      "effect": "造成8點傷害"
     },
     "bottom_spell": {
       "spell_id": "B25",
       "name": "雨幕",
       "cost": "水4 風2",
-      "effect": "造成５點傷害。回復自己２點生命"
+      "effect": "造成5點傷害。回復自己2點生命"
     }
   },
   {
@@ -585,13 +585,13 @@
       "spell_id": "A16",
       "name": "閃電雷擊",
       "cost": "雷4",
-      "effect": "造成８點傷害"
+      "effect": "造成8點傷害"
     },
     "bottom_spell": {
       "spell_id": "B11",
       "name": "葉舞",
       "cost": "木4 風2",
-      "effect": "造成６點傷害。獲得２點護盾"
+      "effect": "造成6點傷害。獲得2點護盾"
     }
   },
   {
@@ -600,13 +600,13 @@
       "spell_id": "A16",
       "name": "閃電雷擊",
       "cost": "雷4",
-      "effect": "造成８點傷害"
+      "effect": "造成8點傷害"
     },
     "bottom_spell": {
       "spell_id": "B27",
       "name": "還原反應",
       "cost": "水4 毒2",
-      "effect": "移除一位玩家２個主要屬性點並隨機捨棄其一張手牌。將其角色改為未解放狀態"
+      "effect": "移除一位玩家2個主要屬性點並隨機捨棄其一張手牌。將其角色改為未解放狀態"
     }
   },
   {
@@ -615,13 +615,13 @@
       "spell_id": "A16",
       "name": "閃電雷擊",
       "cost": "雷4",
-      "effect": "造成８點傷害"
+      "effect": "造成8點傷害"
     },
     "bottom_spell": {
       "spell_id": "B13",
       "name": "孢子擴散",
       "cost": "木4 毒2",
-      "effect": "造成５點傷害。獲得５點護盾"
+      "effect": "造成5點傷害。獲得5點護盾"
     }
   },
   {
@@ -630,7 +630,7 @@
       "spell_id": "A17",
       "name": "奧義：聚能射擊",
       "cost": "雷5",
-      "effect": "造成１２點傷害"
+      "effect": "造成12點傷害"
     },
     "bottom_spell": null
   },
@@ -640,7 +640,7 @@
       "spell_id": "A18",
       "name": "奧義：閃爍射擊",
       "cost": "雷5",
-      "effect": "造成３次３點傷害"
+      "effect": "造成3次3點傷害"
     },
     "bottom_spell": null
   },
@@ -650,13 +650,13 @@
       "spell_id": "A19",
       "name": "潮破",
       "cost": "水1",
-      "effect": "造成屬性等級＋２點傷害"
+      "effect": "造成屬性等級+2點傷害"
     },
     "bottom_spell": {
       "spell_id": "B37",
       "name": "擾亂",
       "cost": "毒5",
-      "effect": "５點傷害。隨機捨棄對手一張手牌。"
+      "effect": "5點傷害。隨機捨棄對手一張手牌。"
     }
   },
   {
@@ -665,13 +665,13 @@
       "spell_id": "A19",
       "name": "潮破",
       "cost": "水1",
-      "effect": "造成屬性等級＋２點傷害"
+      "effect": "造成屬性等級+2點傷害"
     },
     "bottom_spell": {
       "spell_id": "B32",
       "name": "應變術式。疾",
       "cost": "風4",
-      "effect": "４點傷害。可重新分配自己３個屬性點"
+      "effect": "4點傷害。可重新分配自己3個屬性點"
     }
   },
   {
@@ -680,13 +680,13 @@
       "spell_id": "A20",
       "name": "水彈",
       "cost": "水2",
-      "effect": "造成５點傷害"
+      "effect": "造成5點傷害"
     },
     "bottom_spell": {
       "spell_id": "B35",
       "name": "誤導",
       "cost": "毒3",
-      "effect": "３點傷害。檢視對手手牌，強制捨棄指定一張，後對手抽一張牌"
+      "effect": "3點傷害。檢視對手手牌，強制捨棄指定一張，後對手抽一張牌"
     }
   },
   {
@@ -695,13 +695,13 @@
       "spell_id": "A20",
       "name": "水彈",
       "cost": "水2",
-      "effect": "造成５點傷害"
+      "effect": "造成5點傷害"
     },
     "bottom_spell": {
       "spell_id": "B29",
       "name": "混和射彈。風",
       "cost": "風2",
-      "effect": "５點傷害。同時發動另一主要屬性的精通效果"
+      "effect": "5點傷害。同時發動另一主要屬性的精通效果"
     }
   },
   {
@@ -710,7 +710,7 @@
       "spell_id": "A20",
       "name": "水彈",
       "cost": "水2",
-      "effect": "造成５點傷害"
+      "effect": "造成5點傷害"
     },
     "bottom_spell": {
       "spell_id": "B16",
@@ -725,13 +725,13 @@
       "spell_id": "A21",
       "name": "凝水彈",
       "cost": "水3",
-      "effect": "造成７點傷害"
+      "effect": "造成7點傷害"
     },
     "bottom_spell": {
       "spell_id": "B9",
       "name": "觸電",
       "cost": "木4 雷2",
-      "effect": "造成８點傷害。每１點護盾使此傷害+２"
+      "effect": "造成8點傷害。每1點護盾使此傷害+2"
     }
   },
   {
@@ -740,7 +740,7 @@
       "spell_id": "A21",
       "name": "凝水彈",
       "cost": "水3",
-      "effect": "造成７點傷害"
+      "effect": "造成7點傷害"
     },
     "bottom_spell": {
       "spell_id": "B2",
@@ -755,13 +755,13 @@
       "spell_id": "A21",
       "name": "凝水彈",
       "cost": "水3",
-      "effect": "造成７點傷害"
+      "effect": "造成7點傷害"
     },
     "bottom_spell": {
       "spell_id": "B7",
       "name": "火球追擊",
       "cost": "火4 毒4",
-      "effect": "對同一人造成４點傷害２次"
+      "effect": "對同一人造成4點傷害2次"
     }
   },
   {
@@ -770,13 +770,13 @@
       "spell_id": "A21",
       "name": "凝水彈",
       "cost": "水3",
-      "effect": "造成７點傷害"
+      "effect": "造成7點傷害"
     },
     "bottom_spell": {
       "spell_id": "B19",
       "name": "雷爆",
       "cost": "雷4 風4",
-      "effect": "造成９點傷害"
+      "effect": "造成9點傷害"
     }
   },
   {
@@ -785,13 +785,13 @@
       "spell_id": "A22",
       "name": "水柱衝擊",
       "cost": "水4",
-      "effect": "造成８點傷害"
+      "effect": "造成8點傷害"
     },
     "bottom_spell": {
       "spell_id": "B4",
       "name": "氣爆",
       "cost": "火4 風2",
-      "effect": "對兩個敵人各造成４點傷害"
+      "effect": "對兩個敵人各造成4點傷害"
     }
   },
   {
@@ -800,13 +800,13 @@
       "spell_id": "A22",
       "name": "水柱衝擊",
       "cost": "水4",
-      "effect": "造成８點傷害"
+      "effect": "造成8點傷害"
     },
     "bottom_spell": {
       "spell_id": "B18",
       "name": "落雷",
       "cost": "雷4 風2",
-      "effect": "造成７點傷害"
+      "effect": "造成7點傷害"
     }
   },
   {
@@ -815,13 +815,13 @@
       "spell_id": "A22",
       "name": "水柱衝擊",
       "cost": "水4",
-      "effect": "造成８點傷害"
+      "effect": "造成8點傷害"
     },
     "bottom_spell": {
       "spell_id": "B6",
       "name": "快速反應",
       "cost": "火4 毒2",
-      "effect": "造成６點傷害。檢視公牌最上面的卡片，可以將它捨棄或放回去"
+      "effect": "造成6點傷害。檢視公牌最上面的卡片，可以將它捨棄或放回去"
     }
   },
   {
@@ -830,13 +830,13 @@
       "spell_id": "A22",
       "name": "水柱衝擊",
       "cost": "水4",
-      "effect": "造成８點傷害"
+      "effect": "造成8點傷害"
     },
     "bottom_spell": {
       "spell_id": "B20",
       "name": "元素解離",
       "cost": "雷4 毒2",
-      "effect": "造成５點傷害。賦予目標「封印」一回合"
+      "effect": "造成5點傷害。賦予目標「封印」一回合"
     }
   },
   {
@@ -845,7 +845,7 @@
       "spell_id": "A23",
       "name": "奧義：水瀑",
       "cost": "水5",
-      "effect": "造成１２點傷害"
+      "effect": "造成12點傷害"
     },
     "bottom_spell": null
   },
@@ -855,7 +855,7 @@
       "spell_id": "A24",
       "name": "奧義：水濂",
       "cost": "水5",
-      "effect": "回復一個角色１５生命"
+      "effect": "回復一個角色15生命"
     },
     "bottom_spell": null
   }

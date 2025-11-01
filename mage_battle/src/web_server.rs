@@ -92,7 +92,6 @@ pub fn create_router() -> Router {
 
         // 遊戲動作
         .route("/api/game/:game_id/allocate", post(allocate_attribute))
-        .route("/api/game/:game_id/play_bolt", post(play_attribute_bolt))
         .route("/api/game/:game_id/play_card", post(play_spell_card))
         .route("/api/game/:game_id/liberate", post(use_liberation))
         .route("/api/game/:game_id/draw", post(draw_card))
@@ -564,63 +563,6 @@ async fn allocate_attribute(
                 let result = ActionResultDto {
                     success: true,
                     message: format!("分配了{}屬性點", attr_type.to_string()),
-                    events: vec![],
-                };
-                (StatusCode::OK, Json(ApiResponse::ok(result)))
-            }
-            Err(e) => (
-                StatusCode::BAD_REQUEST,
-                Json(ApiResponse::<ActionResultDto>::error(
-                    "ACTION_FAILED".to_string(),
-                    e,
-                )),
-            ),
-        }
-    } else {
-        (
-            StatusCode::NOT_FOUND,
-            Json(ApiResponse::<ActionResultDto>::error(
-                "GAME_NOT_FOUND".to_string(),
-                "遊戲不存在".to_string(),
-            )),
-        )
-    }
-}
-
-/// 使用屬性彈
-async fn play_attribute_bolt(
-    State(store): State<AppState>,
-    Path(game_id): Path<String>,
-    Json(req): Json<PlayAttributeBoltRequest>,
-) -> impl IntoResponse {
-    if let Some(game_mutex) = store.get_game(&game_id) {
-        let mut game = game_mutex.lock().await;
-
-        let attr_type = match req.attribute.as_str() {
-            "Fire" => AttributeType::Fire,
-            "Wood" => AttributeType::Wood,
-            "Thunder" => AttributeType::Thunder,
-            "Water" => AttributeType::Water,
-            "Wind" => AttributeType::Wind,
-            "Poison" => AttributeType::Poison,
-            _ => {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Json(ApiResponse::<ActionResultDto>::error(
-                        "INVALID_ATTRIBUTE".to_string(),
-                        "無效的屬性類型".to_string(),
-                    )),
-                );
-            }
-        };
-
-        match game.play_attribute_bolt(req.card_id, attr_type) {
-            Ok(_) => {
-                let current_id = game.current_player_index;
-                let target_id = game.players[current_id].left_player_id(game.players.len());
-                let result = ActionResultDto {
-                    success: true,
-                    message: format!("使用{}屬性彈攻擊前一位玩家", attr_type.to_string()),
                     events: vec![],
                 };
                 (StatusCode::OK, Json(ApiResponse::ok(result)))

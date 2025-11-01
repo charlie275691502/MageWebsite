@@ -1,5 +1,5 @@
 use crate::attribute::AttributeType;
-use crate::card::{AttributeBolt, Card, CardDatabase, CardId, CardSide};
+use crate::card::{Card, CardDatabase, CardId, CardSide};
 use crate::character::{Character, CharacterType};
 use crate::effect::{EffectType, TargetPool};
 use crate::player::{Player, PlayerId, TeamId};
@@ -203,81 +203,6 @@ impl Game {
         player.attributes.add(attr_type, 1);
         self.turn_phase = TurnPhase::PlayCard;
 
-        Ok(())
-    }
-
-    /// 使用屬性彈（需要打出一張卡片）
-    pub fn play_attribute_bolt(&mut self, card_id: CardId, attr_type: AttributeType) -> Result<(), String> {
-        if self.turn_phase != TurnPhase::PlayCard {
-            return Err("不是出牌階段".to_string());
-        }
-
-        let current_id = self.current_player_index;
-
-        // 檢查是否有這張卡
-        if !self.players[current_id].hand.contains(&card_id) {
-            return Err("手牌中沒有這張卡".to_string());
-        }
-
-        // 獲取屬性等級
-        let level = self.players[current_id].attributes.get(attr_type);
-        if level == 0 {
-            return Err(format!("沒有{}屬性點", attr_type.to_string()));
-        }
-
-        // 打出卡片並丟到棄牌堆
-        if !self.players[current_id].discard_card(card_id) {
-            return Err("打出卡片失敗".to_string());
-        }
-
-        // 屬性彈攻擊最遠的存活敵人
-        let target_id = self.get_furthest_alive_enemy(current_id)
-            .ok_or("沒有存活的敵人".to_string())?;
-
-        let bolt = AttributeBolt::new(attr_type, level);
-        let mut damage = bolt.base_damage();
-
-        // 屬性彈也有屬性附魔，應用專精加成
-        let caster_fire = self.players[current_id].attributes.fire;
-        let caster_thunder = self.players[current_id].attributes.thunder;
-        let caster_wood = self.players[current_id].attributes.wood;
-
-        // 木Lv3專精：使用木屬性彈時，減少1點生命並獲得1點護盾（不受木Lv5影響，不受護盾影響）
-        if attr_type == AttributeType::Wood && caster_wood >= 3 {
-            self.players[current_id].hp -= 1;
-            if self.players[current_id].hp <= 0 {
-                self.players[current_id].hp = 0;
-                self.players[current_id].is_dead = true;
-                self.players[current_id].death_turns = 0;
-                self.players[current_id].hand.clear();
-                self.players[current_id].buffs.clear_all();
-            }
-            self.players[current_id].shield += 1;
-        }
-
-        // 火Lv3: 所有屬性彈+1
-        if caster_fire >= 3 {
-            damage += 1;
-        }
-
-        // 雷屬性專精
-        if attr_type == AttributeType::Thunder {
-            // 雷Lv3: 雷屬性法術傷害+1
-            if caster_thunder >= 3 {
-                damage += 1;
-            }
-            // 雷Lv5: 雷屬性法術傷害+2 (合計+3)
-            if caster_thunder >= 5 {
-                damage += 2;
-            }
-        }
-
-        // NOTE: Wood Lv5 reduction is now handled in take_damage()
-
-        // 對目標造成傷害（屬性彈視為法術，受木Lv5影響）
-        self.players[target_id].take_damage(damage, crate::damage::DamageType::Spell);
-
-        self.turn_phase = TurnPhase::DrawCard;
         Ok(())
     }
 
@@ -1370,6 +1295,27 @@ mod tests {
         assert_eq!(game.players[target].hand.len(), initial_hand_size - 1);
     }
 
+    #[test]
+    fn test_effect_get_aoyi_self() {
+        let mut game = setup_test_game();
+        let caster = 0;
+
+        // Add some aoyi cards to discard pile
+        game.public_discard_pile.push(14); // Card 14 has A5 (aoyi)
+        game.public_discard_pile.push(15); // Card 15 has A6 (aoyi)
+        game.public_discard_pile.push(3);  // Card 3 is not aoyi
+
+        let initial_hand_size = game.players[caster].hand.len();
+
+        game.apply_effect(caster, &EffectType::GetAoyiSelf, &[], &[]).unwrap();
+
+        // Should have gained a card
+        assert_eq!(game.players[caster].hand.len(), initial_hand_size + 1);
+        // The card should be one of the aoyi cards
+        let new_card = game.players[caster].hand.last().unwrap();
+        assert!(*new_card == 14 || *new_card == 15);
+    }
+
     // === 特殊類效果測試 ===
 
     #[test]
@@ -1383,5 +1329,443 @@ mod tests {
         game.apply_effect(0, &EffectType::Dearouse, &[target], &[]).unwrap();
 
         assert!(!game.players[target].character.is_liberated);
+    }
+
+    // === Additional Buff Effect Tests ===
+
+    #[test]
+    fn test_effect_buff_self_four() {
+        let mut game = setup_test_game();
+        let caster = 0;
+
+        game.apply_effect(caster, &EffectType::BuffSelfFour(BuffType::Regeneration), &[], &[]).unwrap();
+
+        assert!(game.players[caster].buffs.has(BuffType::Regeneration));
+        if let Some(buff) = game.players[caster].buffs.get(BuffType::Regeneration) {
+            assert!(matches!(buff.duration, BuffDuration::Turns(4)));
+        }
+    }
+
+    #[test]
+    fn test_effect_buff_self_six() {
+        let mut game = setup_test_game();
+        let caster = 0;
+
+        game.apply_effect(caster, &EffectType::BuffSelfSix(BuffType::BurningOut), &[], &[]).unwrap();
+
+        assert!(game.players[caster].buffs.has(BuffType::BurningOut));
+        if let Some(buff) = game.players[caster].buffs.get(BuffType::BurningOut) {
+            assert!(matches!(buff.duration, BuffDuration::Turns(6)));
+        }
+    }
+
+    #[test]
+    fn test_effect_buff_self_one() {
+        let mut game = setup_test_game();
+        let caster = 0;
+
+        game.apply_effect(caster, &EffectType::BuffSelfOne(BuffType::Immune), &[], &[]).unwrap();
+
+        assert!(game.players[caster].buffs.has(BuffType::Immune));
+        if let Some(buff) = game.players[caster].buffs.get(BuffType::Immune) {
+            assert!(matches!(buff.duration, BuffDuration::Turns(1)));
+        }
+    }
+
+    // === Damage Variation Tests ===
+
+    #[test]
+    fn test_effect_damage_with_proficiency() {
+        let mut game = setup_test_game();
+        let target = 1;
+        let initial_hp = game.players[target].hp;
+
+        // Set fire proficiency
+        game.players[0].attributes.fire = 3;
+
+        game.apply_effect(0, &EffectType::Damage(10), &[target], &[]).unwrap();
+
+        // Should deal 10 + 1 (fire lv3 proficiency) = 11 damage
+        assert_eq!(game.players[target].hp, initial_hp - 11);
+    }
+
+    #[test]
+    fn test_effect_damage_blocked_by_immunity() {
+        let mut game = setup_test_game();
+        let target = 1;
+        let initial_hp = game.players[target].hp;
+
+        // Give target immunity
+        game.players[target].buffs.add(Buff::new(BuffType::Immune, BuffDuration::Permanent));
+
+        game.apply_effect(0, &EffectType::Damage(10), &[target], &[]).unwrap();
+
+        // Should not take damage due to immunity
+        assert_eq!(game.players[target].hp, initial_hp);
+    }
+
+    #[test]
+    fn test_effect_damage_reduced_by_shield() {
+        let mut game = setup_test_game();
+        let target = 1;
+        let initial_hp = game.players[target].hp;
+
+        game.players[target].shield = 5;
+
+        game.apply_effect(0, &EffectType::Damage(10), &[target], &[]).unwrap();
+
+        // 5 damage absorbed by shield, 5 damage to HP
+        assert_eq!(game.players[target].shield, 0);
+        assert_eq!(game.players[target].hp, initial_hp - 5);
+    }
+
+    #[test]
+    fn test_effect_double_damage_hits_twice() {
+        let mut game = setup_test_game();
+        let target = 1;
+        let initial_hp = game.players[target].hp;
+
+        game.apply_effect(0, &EffectType::DoubleDamage(5), &[target], &[]).unwrap();
+
+        // Should deal 5 damage twice = 10 total
+        assert_eq!(game.players[target].hp, initial_hp - 10);
+    }
+
+    #[test]
+    fn test_effect_triple_damage_hits_thrice() {
+        let mut game = setup_test_game();
+        let target = 1;
+        let initial_hp = game.players[target].hp;
+
+        game.apply_effect(0, &EffectType::TripleDamage(3), &[target], &[]).unwrap();
+
+        // Should deal 3 damage three times = 9 total
+        assert_eq!(game.players[target].hp, initial_hp - 9);
+    }
+
+    #[test]
+    fn test_effect_increase_damage_scales_with_attribute() {
+        let mut game = setup_test_game();
+        let target = 1;
+        let initial_hp = game.players[target].hp;
+
+        // Set fire attribute level to 3
+        game.players[0].attributes.fire = 3;
+
+        game.apply_effect(0, &EffectType::IncreaseDamage(2), &[target], &[]).unwrap();
+
+        // Should deal 3 (fire level) + 2 = 5 damage
+        assert_eq!(game.players[target].hp, initial_hp - 5);
+    }
+
+    #[test]
+    fn test_effect_sub_mtd_damage_scales_with_secondary_attributes() {
+        let mut game = setup_test_game();
+        let target = 1;
+        let initial_hp = game.players[target].hp;
+
+        // Set secondary attributes (wind + poison)
+        game.players[target].attributes.wind = 2;
+        game.players[target].attributes.poison = 3;
+
+        game.apply_effect(0, &EffectType::SubMTDDamage(2), &[target], &[]).unwrap();
+
+        // Should deal (2 + 3) * 2 = 10 damage
+        assert_eq!(game.players[target].hp, initial_hp - 10);
+    }
+
+    #[test]
+    fn test_effect_shield_d_damage_scales_with_shield() {
+        let mut game = setup_test_game();
+        let target = 1;
+        let initial_hp = game.players[target].hp;
+
+        game.players[target].shield = 3;
+
+        game.apply_effect(0, &EffectType::ShieldDDamage(8), &[target], &[]).unwrap();
+
+        // Should deal 8 + (3 * 2) = 14 damage total
+        // 3 absorbed by shield, 11 to HP
+        assert_eq!(game.players[target].shield, 0);
+        assert_eq!(game.players[target].hp, initial_hp - 11);
+    }
+
+    // === Heal Tests ===
+
+    #[test]
+    fn test_effect_heal_blocked_by_defense_invalidation() {
+        let mut game = setup_test_game();
+        let target = 1;
+
+        game.players[target].hp = 10;
+        game.players[target].buffs.add(Buff::new(BuffType::DefenseInvalidation, BuffDuration::Turns(1)));
+
+        game.apply_effect(0, &EffectType::Heal(5), &[target], &[]).unwrap();
+
+        // Should not heal due to defense invalidation
+        assert_eq!(game.players[target].hp, 10);
+    }
+
+    #[test]
+    fn test_effect_heal_self_blocked_by_defense_invalidation() {
+        let mut game = setup_test_game();
+        let caster = 0;
+
+        game.players[caster].hp = 15;
+        game.players[caster].buffs.add(Buff::new(BuffType::DefenseInvalidation, BuffDuration::Turns(1)));
+
+        game.apply_effect(caster, &EffectType::HealSelf(5), &[], &[]).unwrap();
+
+        // Should not heal due to defense invalidation
+        assert_eq!(game.players[caster].hp, 15);
+    }
+
+    // === Shield Tests ===
+
+    #[test]
+    fn test_effect_shield_blocked_by_defense_invalidation() {
+        let mut game = setup_test_game();
+        let target = 1;
+
+        game.players[target].buffs.add(Buff::new(BuffType::DefenseInvalidation, BuffDuration::Turns(1)));
+
+        game.apply_effect(0, &EffectType::Shield(10), &[target], &[]).unwrap();
+
+        // Should not gain shield due to defense invalidation
+        assert_eq!(game.players[target].shield, 0);
+    }
+
+    #[test]
+    fn test_effect_shield_self_blocked_by_defense_invalidation() {
+        let mut game = setup_test_game();
+        let caster = 0;
+
+        game.players[caster].buffs.add(Buff::new(BuffType::DefenseInvalidation, BuffDuration::Turns(1)));
+
+        game.apply_effect(caster, &EffectType::ShieldSelf(10), &[], &[]).unwrap();
+
+        // Should not gain shield due to defense invalidation
+        assert_eq!(game.players[caster].shield, 0);
+    }
+
+    #[test]
+    fn test_effect_destroy_all_shield_removes_all() {
+        let mut game = setup_test_game();
+
+        // Give all players shields
+        for player in &mut game.players {
+            player.shield = 10;
+        }
+
+        game.apply_effect(0, &EffectType::DestroyAllShield, &[], &[]).unwrap();
+
+        // All shields should be removed
+        for player in &game.players {
+            assert_eq!(player.shield, 0);
+        }
+    }
+
+    // === Attribute Deallocation Tests ===
+
+    #[test]
+    fn test_effect_flame_deallocation_returns_fire_points() {
+        let mut game = setup_test_game();
+        let caster = 0;
+
+        game.players[caster].attributes.fire = 3;
+        game.players[caster].free_points = 0;
+
+        game.apply_effect(caster, &EffectType::FlameDeallocation, &[], &[]).unwrap();
+
+        assert_eq!(game.players[caster].attributes.fire, 0);
+        assert_eq!(game.players[caster].free_points, 3);
+    }
+
+    #[test]
+    fn test_effect_wood_deallocation_returns_wood_points() {
+        let mut game = setup_test_game();
+        let caster = 0;
+
+        game.players[caster].attributes.wood = 4;
+        game.players[caster].free_points = 0;
+
+        game.apply_effect(caster, &EffectType::WoodDeallocation, &[], &[]).unwrap();
+
+        assert_eq!(game.players[caster].attributes.wood, 0);
+        assert_eq!(game.players[caster].free_points, 4);
+    }
+
+    #[test]
+    fn test_effect_spark_deallocation_returns_thunder_points() {
+        let mut game = setup_test_game();
+        let caster = 0;
+
+        game.players[caster].attributes.thunder = 5;
+        game.players[caster].free_points = 1;
+
+        game.apply_effect(caster, &EffectType::SparkDeallocation, &[], &[]).unwrap();
+
+        assert_eq!(game.players[caster].attributes.thunder, 0);
+        assert_eq!(game.players[caster].free_points, 6);
+    }
+
+    #[test]
+    fn test_effect_water_deallocation_returns_water_points() {
+        let mut game = setup_test_game();
+        let caster = 0;
+
+        game.players[caster].attributes.water = 2;
+        game.players[caster].free_points = 0;
+
+        game.apply_effect(caster, &EffectType::WaterDeallocation, &[], &[]).unwrap();
+
+        assert_eq!(game.players[caster].attributes.water, 0);
+        assert_eq!(game.players[caster].free_points, 2);
+    }
+
+    // === Attribute Point Manipulation Tests ===
+
+    #[test]
+    fn test_effect_gain_ap_self() {
+        let mut game = setup_test_game();
+        let caster = 0;
+        let initial_free = game.players[caster].free_points;
+
+        game.apply_effect(caster, &EffectType::GainAPSelf(3), &[], &[]).unwrap();
+
+        assert_eq!(game.players[caster].free_points, initial_free + 3);
+    }
+
+    #[test]
+    fn test_effect_remove_main_mt_ap() {
+        let mut game = setup_test_game();
+        let target = 1;
+
+        game.players[target].attributes.fire = 3;
+        game.players[target].attributes.water = 2;
+        game.players[target].hand.push(10);
+        game.players[target].hand.push(11);
+        let initial_hand_size = game.players[target].hand.len();
+
+        game.apply_effect(0, &EffectType::RemoveMainMTAP(2), &[target], &[]).unwrap();
+
+        // Should have removed 2 primary attribute points
+        let total_primary = game.players[target].attributes.fire +
+                           game.players[target].attributes.wood +
+                           game.players[target].attributes.thunder +
+                           game.players[target].attributes.water;
+        assert_eq!(total_primary, 3);
+
+        // Should have discarded 1 card
+        assert_eq!(game.players[target].hand.len(), initial_hand_size - 1);
+    }
+
+    // === Multiple Target Tests ===
+
+    #[test]
+    fn test_effect_damage_multiple_targets() {
+        let mut game = setup_test_game();
+        let targets = vec![1, 3];
+        let initial_hp_1 = game.players[1].hp;
+        let initial_hp_3 = game.players[3].hp;
+
+        game.apply_effect(0, &EffectType::Damage(5), &targets, &[]).unwrap();
+
+        assert_eq!(game.players[1].hp, initial_hp_1 - 5);
+        assert_eq!(game.players[3].hp, initial_hp_3 - 5);
+    }
+
+    #[test]
+    fn test_effect_heal_multiple_targets() {
+        let mut game = setup_test_game();
+        let targets = vec![0, 2];
+
+        game.players[0].hp = 10;
+        game.players[2].hp = 15;
+
+        game.apply_effect(0, &EffectType::Heal(5), &targets, &[]).unwrap();
+
+        assert_eq!(game.players[0].hp, 15);
+        assert_eq!(game.players[2].hp, 20);
+    }
+
+    #[test]
+    fn test_effect_shield_multiple_targets() {
+        let mut game = setup_test_game();
+        let targets = vec![0, 2];
+
+        game.apply_effect(0, &EffectType::Shield(7), &targets, &[]).unwrap();
+
+        assert_eq!(game.players[0].shield, 7);
+        assert_eq!(game.players[2].shield, 7);
+    }
+
+    // === Edge Case Tests ===
+
+    #[test]
+    fn test_effect_damage_to_dead_player() {
+        let mut game = setup_test_game();
+        let target = 1;
+
+        game.players[target].hp = 0;
+        game.players[target].is_dead = true;
+
+        game.apply_effect(0, &EffectType::Damage(10), &[target], &[]).unwrap();
+
+        // Should still be at 0 HP
+        assert_eq!(game.players[target].hp, 0);
+    }
+
+    #[test]
+    fn test_effect_heal_dead_player_does_nothing() {
+        let mut game = setup_test_game();
+        let target = 1;
+
+        game.players[target].hp = 0;
+        game.players[target].is_dead = true;
+
+        game.apply_effect(0, &EffectType::Heal(10), &[target], &[]).unwrap();
+
+        // Dead players can't be healed by regular heal
+        assert_eq!(game.players[target].hp, 0);
+    }
+
+    #[test]
+    fn test_effect_random_discard_empty_hand() {
+        let mut game = setup_test_game();
+        let target = 1;
+
+        game.players[target].hand.clear();
+
+        // Should not error when discarding from empty hand
+        game.apply_effect(0, &EffectType::RandomDiscard, &[target], &[]).unwrap();
+
+        assert_eq!(game.players[target].hand.len(), 0);
+    }
+
+    #[test]
+    fn test_effect_remove_ap_when_no_points() {
+        let mut game = setup_test_game();
+        let target = 1;
+
+        // Set all attributes to 0
+        game.players[target].attributes.fire = 0;
+        game.players[target].attributes.wood = 0;
+        game.players[target].attributes.thunder = 0;
+        game.players[target].attributes.water = 0;
+        game.players[target].attributes.wind = 0;
+        game.players[target].attributes.poison = 0;
+
+        // Should not error when removing from player with no points
+        game.apply_effect(0, &EffectType::RemoveAP(5), &[target], &[]).unwrap();
+
+        // All should still be 0
+        let total = game.players[target].attributes.fire +
+                    game.players[target].attributes.wood +
+                    game.players[target].attributes.thunder +
+                    game.players[target].attributes.water +
+                    game.players[target].attributes.wind +
+                    game.players[target].attributes.poison;
+        assert_eq!(total, 0);
     }
 }

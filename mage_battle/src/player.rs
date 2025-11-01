@@ -1,6 +1,6 @@
 use crate::attribute::AttributePoints;
 use crate::buff::BuffList;
-use crate::card::{AttributeBolt, CardId};
+use crate::card::CardId;
 use crate::character::Character;
 use serde::{Deserialize, Serialize};
 

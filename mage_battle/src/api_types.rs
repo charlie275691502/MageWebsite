@@ -156,13 +156,6 @@ pub struct AllocateAttributeRequest {
     pub attribute: String,  // "Fire", "Wood", etc.
 }
 
-/// 使用屬性彈請求
-#[derive(Debug, Deserialize)]
-pub struct PlayAttributeBoltRequest {
-    pub card_id: CardId,  // 使用哪張卡
-    pub attribute: String,  // 使用哪個屬性彈
-}
-
 /// 打出法術卡請求
 #[derive(Debug, Deserialize)]
 pub struct PlaySpellCardRequest {
