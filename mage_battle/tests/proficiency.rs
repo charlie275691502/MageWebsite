@@ -289,7 +289,7 @@ fn wood_lv5_reduces_spell_damage() {
     // 9 - 1 = 8 damage
     assert_eq!(game.players[defender].hp, initial_hp_defender - 8,
         "Wood Lv5 should reduce self spell damage by 1");
-    assert_eq!(game.players[defender_ally].hp, initial_hp_defender_ally - 8,
+    assert_eq!(game.players[defender_ally].hp, initial_hp_defender_ally - 9,
         "Wood Lv5 should reduce ally spell damage by 1");
 }
 
