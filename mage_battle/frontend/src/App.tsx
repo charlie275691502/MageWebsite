@@ -149,8 +149,8 @@ const getActivatedProficienciesForBolt = (
   const activated: string[] = [];
   const attrLower = boltAttr.toLowerCase();
 
-  // Fire Lv3 affects ALL attribute bolts
-  if (playerAttributes.fire >= 3) {
+  // Fire Lv3 affects ALL attribute bolts (but don't add it twice for fire bolt)
+  if (playerAttributes.fire >= 3 && attrLower !== 'fire') {
     activated.push(`火 Lv3: ${attributeProficiency.fire.find(p => p.level === 3)?.description}`);
   }
 
@@ -1248,6 +1248,59 @@ function App() {
                       })}
                     </div>
 
+                    {/* Buffs Display */}
+                    {player.buffs && player.buffs.length > 0 && (
+                      <div className="player-buffs-row">
+                        {player.buffs.map((buff, idx) => {
+                          const isDebuff = [
+                            "Paralysis",
+                            "Seal",
+                            "Silent",
+                            "MasterDisable",
+                            "DefenseInvalidation",
+                            "Confuse",
+                            "HealthDrainTarget",
+                          ].includes(buff.buff_type);
+
+                          const buffEmojis: Record<string, string> = {
+                            Immune: "🛡️",
+                            Invincible: "✨",
+                            Paralysis: "❄️",
+                            Seal: "🔒",
+                            Silent: "🤐",
+                            MasterDisable: "🚫",
+                            DefenseInvalidation: "💔",
+                            Confuse: "😵",
+                            HealthDrain: "🩸",
+                            HealthDrainTarget: "🎯",
+                            Regeneration: "💚",
+                            BurningOut: "🔥",
+                            GuardWoodCarving: "🗿",
+                          };
+
+                          const emoji = buffEmojis[buff.buff_type] || "⭐";
+
+                          return (
+                            <div
+                              key={`${buff.buff_type}-${idx}`}
+                              className={`buff-badge ${
+                                isDebuff ? "debuff" : "buff"
+                              }`}
+                              title={`${buff.name}\n${buff.duration}`}
+                            >
+                              <span className="buff-emoji">{emoji}</span>
+                              <span className="buff-name">{buff.name}</span>
+                              {buff.duration !== "永久" && (
+                                <span className="buff-duration">
+                                  {buff.duration}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
                     {player.is_dead && (
                       <div className="death-status-inline">
                         💀 已死亡 ({player.death_turns}/2)
@@ -1620,7 +1673,7 @@ function App() {
                                   return (
                                     <button
                                       key={player.id}
-                                      className={`target-button team-${player.team} ${
+                                      className={`target-button team-${player.team.toLowerCase()} ${
                                         isValidTarget ? "valid" : "disabled"
                                       }`}
                                       onClick={() => {
@@ -1715,7 +1768,7 @@ function App() {
                                   return (
                                     <button
                                       key={player.id}
-                                      className={`target-button team-${player.team} ${
+                                      className={`target-button team-${player.team.toLowerCase()} ${
                                         isValidTarget ? "valid" : "disabled"
                                       }`}
                                       onClick={() => {

@@ -2338,36 +2338,31 @@
 }
 
 /* Team colors for target buttons */
-.target-button.team-A.valid {
+.target-button.team-team0.valid {
   background: linear-gradient(135deg, #3182ce, #2c5282);
 }
 
-.target-button.team-A.valid:hover {
+.target-button.team-team0.valid:hover {
   box-shadow: 0 4px 8px rgba(49, 130, 206, 0.4);
 }
 
-.target-button.team-B.valid {
+.target-button.team-team1.valid {
   background: linear-gradient(135deg, #e53e3e, #9b2c2c);
 }
 
-.target-button.team-B.valid:hover {
+.target-button.team-team1.valid:hover {
   box-shadow: 0 4px 8px rgba(229, 62, 62, 0.4);
 }
 
-.target-button.team-C.valid {
-  background: linear-gradient(135deg, #38a169, #22543d);
+/* Also add disabled states with team colors but more muted */
+.target-button.team-team0.disabled {
+  background: linear-gradient(135deg, #63b3ed, #4299e1);
+  opacity: 0.4;
 }
 
-.target-button.team-C.valid:hover {
-  box-shadow: 0 4px 8px rgba(56, 161, 105, 0.4);
-}
-
-.target-button.team-D.valid {
-  background: linear-gradient(135deg, #d69e2e, #744210);
-}
-
-.target-button.team-D.valid:hover {
-  box-shadow: 0 4px 8px rgba(214, 158, 46, 0.4);
+.target-button.team-team1.disabled {
+  background: linear-gradient(135deg, #fc8181, #f56565);
+  opacity: 0.4;
 }
 
 /* Activated Proficiencies Display */
@@ -2397,6 +2392,65 @@
   background: rgba(255, 255, 255, 0.6);
   border-radius: 4px;
   border-left: 3px solid #f39c12;
+}
+
+/* Buffs Display */
+.player-buffs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  padding: 0.3rem 0;
+}
+
+.buff-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: help;
+  white-space: nowrap;
+}
+
+.buff-badge.buff {
+  background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 4px rgba(34, 197, 94, 0.2);
+}
+
+.buff-badge.debuff {
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+}
+
+.buff-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.buff-emoji {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.buff-name {
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.buff-duration {
+  font-size: 0.65rem;
+  opacity: 0.9;
+  margin-left: 0.15rem;
+  padding-left: 0.25rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 /* Responsive */

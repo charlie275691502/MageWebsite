@@ -454,10 +454,25 @@ impl Game {
         targets: &[PlayerId],
         enchantments: &[AttributeType],
     ) -> Result<(), String> {
+        use crate::buff::{Buff, BuffDuration};
+        use crate::damage::DamageType;
+
         let caster_attrs = &self.players[caster_id].attributes;
 
         match effect {
+            // === 傷害類 ===
             EffectType::Damage(base_damage) => {
+                self.apply_damage_effect(caster_id, *base_damage, targets, enchantments)
+            }
+            EffectType::DoubleDamage(base_damage) => {
+                // 造成2次傷害
+                self.apply_damage_effect(caster_id, *base_damage, targets, enchantments)?;
+                self.apply_damage_effect(caster_id, *base_damage, targets, enchantments)
+            }
+            EffectType::TripleDamage(base_damage) => {
+                // 造成3次傷害
+                self.apply_damage_effect(caster_id, *base_damage, targets, enchantments)?;
+                self.apply_damage_effect(caster_id, *base_damage, targets, enchantments)?;
                 self.apply_damage_effect(caster_id, *base_damage, targets, enchantments)
             }
             EffectType::IncreaseDamage(bonus) => {
@@ -471,20 +486,281 @@ impl Game {
                 let total_damage = main_attr_level + bonus;
                 self.apply_damage_effect(caster_id, total_damage, targets, enchantments)
             }
+            EffectType::SubMTDDamage(multiplier) => {
+                // 造成等同於目標N倍輔助屬性點數和的傷害
+                for &target_id in targets {
+                    if target_id >= self.players.len() || self.players[target_id].is_dead {
+                        continue;
+                    }
+                    let target_attrs = &self.players[target_id].attributes;
+                    let sub_attrs_sum = target_attrs.wind + target_attrs.poison;
+                    let damage = sub_attrs_sum as u32 * multiplier;
+                    self.players[target_id].take_damage(damage, DamageType::Spell);
+                }
+                Ok(())
+            }
+            EffectType::ShieldDDamage(base_damage) => {
+                // 造成傷害，每點護盾使傷害+2
+                let caster_shield = self.players[caster_id].shield;
+                let bonus_damage = caster_shield * 2;
+                let total_damage = base_damage + bonus_damage;
+                self.apply_damage_effect(caster_id, total_damage, targets, enchantments)
+            }
+
+            // === 屬性重置類 ===
+            EffectType::FlameDeallocation => {
+                self.players[caster_id].attributes.fire = 0;
+                Ok(())
+            }
+            EffectType::WoodDeallocation => {
+                self.players[caster_id].attributes.wood = 0;
+                Ok(())
+            }
+            EffectType::SparkDeallocation => {
+                self.players[caster_id].attributes.thunder = 0;
+                Ok(())
+            }
+            EffectType::WaterDeallocation => {
+                self.players[caster_id].attributes.water = 0;
+                Ok(())
+            }
+
+            // === 治療類 ===
             EffectType::Heal(amount) => {
                 self.apply_heal_effect(caster_id, *amount, targets, enchantments)
             }
             EffectType::HealSelf(amount) => {
                 self.apply_heal_effect(caster_id, *amount, &[caster_id], enchantments)
             }
+
+            // === 護盾類 ===
             EffectType::Shield(amount) => {
                 self.apply_shield_effect(caster_id, *amount, targets, enchantments)
             }
             EffectType::ShieldSelf(amount) => {
                 self.apply_shield_effect(caster_id, *amount, &[caster_id], enchantments)
             }
-            _ => {
-                // 其他效果類型尚未實現
+            EffectType::DestroyAllShield => {
+                // 移除所有玩家的護盾
+                for player in &mut self.players {
+                    player.shield = 0;
+                }
+                Ok(())
+            }
+
+            // === Buff類 ===
+            EffectType::BuffOne(buff_type) => {
+                for &target_id in targets {
+                    if target_id >= self.players.len() {
+                        continue;
+                    }
+                    // 檢查免疫負面效果
+                    if buff_type.is_debuff() && self.players[target_id].buffs.is_immune_to_debuff() {
+                        continue;
+                    }
+                    self.players[target_id].buffs.add(Buff::new(*buff_type, BuffDuration::Turns(1)));
+                }
+                Ok(())
+            }
+            EffectType::BuffForever(buff_type) => {
+                for &target_id in targets {
+                    if target_id >= self.players.len() {
+                        continue;
+                    }
+                    if buff_type.is_debuff() && self.players[target_id].buffs.is_immune_to_debuff() {
+                        continue;
+                    }
+                    self.players[target_id].buffs.add(Buff::new(*buff_type, BuffDuration::Permanent));
+                }
+                Ok(())
+            }
+            EffectType::BuffSelfOne(buff_type) => {
+                self.players[caster_id].buffs.add(Buff::new(*buff_type, BuffDuration::Turns(1)));
+                Ok(())
+            }
+            EffectType::BuffSelfTwo(buff_type) => {
+                self.players[caster_id].buffs.add(Buff::new(*buff_type, BuffDuration::Turns(2)));
+                Ok(())
+            }
+            EffectType::BuffSelfFour(buff_type) => {
+                self.players[caster_id].buffs.add(Buff::new(*buff_type, BuffDuration::Turns(4)));
+                Ok(())
+            }
+            EffectType::BuffSelfSix(buff_type) => {
+                self.players[caster_id].buffs.add(Buff::new(*buff_type, BuffDuration::Turns(6)));
+                Ok(())
+            }
+            EffectType::HealthDrain => {
+                // 賦予目標永久生命汲取
+                for &target_id in targets {
+                    if target_id >= self.players.len() {
+                        continue;
+                    }
+                    if self.players[target_id].buffs.is_immune_to_debuff() {
+                        continue;
+                    }
+                    // 生命汲取需要記錄目標ID
+                    self.players[caster_id].buffs.add(Buff::new_with_data(
+                        crate::buff::BuffType::HealthDrain,
+                        BuffDuration::Permanent,
+                        target_id as i32,
+                    ));
+                    // 目標獲得寄主debuff
+                    self.players[target_id].buffs.add(Buff::new(
+                        crate::buff::BuffType::HealthDrainTarget,
+                        BuffDuration::Permanent,
+                    ));
+                }
+                Ok(())
+            }
+            EffectType::GuardWoodCarving(buff_type) => {
+                // 賦予友軍守護木雕（受到3次攻擊消失）
+                for &target_id in targets {
+                    if target_id >= self.players.len() {
+                        continue;
+                    }
+                    self.players[target_id].buffs.add(Buff::new_with_data(
+                        *buff_type,
+                        BuffDuration::UntilHit(3),
+                        3, // 剩餘3次
+                    ));
+                }
+                Ok(())
+            }
+            EffectType::RemoveAllBuff => {
+                // 解除所有玩家的異常狀態
+                for player in &mut self.players {
+                    player.buffs.clear_debuffs();
+                }
+                Ok(())
+            }
+
+            // === 屬性點操作類 ===
+            EffectType::GainAPSelf(amount) => {
+                // 獲得N點屬性點 - 這需要在前端處理選擇
+                // 這裡只是標記效果，實際分配在互動階段完成
+                Ok(())
+            }
+            EffectType::MoveAP(amount) => {
+                // 移動目標N點屬性點 - 需要互動
+                Ok(())
+            }
+            EffectType::MoveAPSelf(amount) => {
+                // 移動自身N點屬性點 - 需要互動
+                Ok(())
+            }
+            EffectType::RemoveMainMTAP(amount) => {
+                // 移除目標N點主要屬性點並隨機捨棄其一張手牌
+                for &target_id in targets {
+                    if target_id >= self.players.len() || self.players[target_id].is_dead {
+                        continue;
+                    }
+                    let target = &mut self.players[target_id];
+
+                    // 移除主要屬性點（火木雷水）
+                    let mut remaining = *amount;
+                    for attr_type in &[AttributeType::Fire, AttributeType::Wood,
+                                      AttributeType::Thunder, AttributeType::Water] {
+                        if remaining == 0 {
+                            break;
+                        }
+                        let current = target.attributes.get(*attr_type);
+                        let to_remove = current.min(remaining as u8);
+                        target.attributes.remove(*attr_type, to_remove);
+                        remaining -= to_remove as u32;
+                    }
+
+                    // 隨機捨棄一張手牌
+                    target.discard_random_card();
+                }
+                Ok(())
+            }
+            EffectType::RemoveAP(amount) => {
+                // 移除目標N點屬性點（任意屬性）
+                for &target_id in targets {
+                    if target_id >= self.players.len() || self.players[target_id].is_dead {
+                        continue;
+                    }
+                    let target = &mut self.players[target_id];
+
+                    // 按順序移除所有屬性
+                    let mut remaining = *amount;
+                    for attr_type in &[AttributeType::Fire, AttributeType::Wood,
+                                      AttributeType::Thunder, AttributeType::Water,
+                                      AttributeType::Wind, AttributeType::Poison] {
+                        if remaining == 0 {
+                            break;
+                        }
+                        let current = target.attributes.get(*attr_type);
+                        let to_remove = current.min(remaining as u8);
+                        target.attributes.remove(*attr_type, to_remove);
+                        remaining -= to_remove as u32;
+                    }
+                }
+                Ok(())
+            }
+
+            // === 卡牌操作類 ===
+            EffectType::GetAoyiSelf => {
+                // 將棄牌堆中隨機一張奧義卡加入手牌
+                let aoyi_cards: Vec<CardId> = self.players[caster_id]
+                    .discard_pile
+                    .iter()
+                    .copied()
+                    .filter(|&card_id| {
+                        if let Some(card) = self.card_db.get_card(card_id) {
+                            card.top_spell.is_aoyi || card.bottom_spell.as_ref().map_or(false, |s| s.is_aoyi)
+                        } else {
+                            false
+                        }
+                    })
+                    .collect();
+
+                if let Some(&card_id) = aoyi_cards.choose(&mut thread_rng()) {
+                    // 從棄牌堆移除並加入手牌
+                    self.players[caster_id].discard_pile.retain(|&id| id != card_id);
+                    self.players[caster_id].draw_card(card_id);
+                }
+                Ok(())
+            }
+            EffectType::RandomDiscard => {
+                // 捨棄目標隨機一張手牌
+                for &target_id in targets {
+                    if target_id >= self.players.len() || self.players[target_id].is_dead {
+                        continue;
+                    }
+                    if let Some(card_id) = self.players[target_id].discard_random_card() {
+                        self.players[target_id].discard_pile.push(card_id);
+                    }
+                }
+                Ok(())
+            }
+            EffectType::ViewTopDrawPile => {
+                // 檢視公牌最上面的卡片 - 需要互動
+                Ok(())
+            }
+            EffectType::ViewAndDiscard(_count) => {
+                // 檢視目標手牌並捨棄指定牌 - 需要互動
+                Ok(())
+            }
+            EffectType::DiscardAndDraw => {
+                // 可捨棄自身任意數量之手牌，並抽相同數量 - 需要互動
+                Ok(())
+            }
+
+            // === 特殊類 ===
+            EffectType::Dearouse => {
+                // 將目標角色改為未解放狀態
+                for &target_id in targets {
+                    if target_id >= self.players.len() || self.players[target_id].is_dead {
+                        continue;
+                    }
+                    self.players[target_id].character.is_liberated = false;
+                }
+                Ok(())
+            }
+            EffectType::AddOneMagicType => {
+                // 同時發動另一主要屬性的精通效果 - 需要互動選擇屬性
                 Ok(())
             }
         }
@@ -692,6 +968,18 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::buff::{Buff, BuffDuration, BuffType};
+
+    fn setup_test_game() -> Game {
+        let names = vec!["P1".to_string(), "P2".to_string(), "P3".to_string(), "P4".to_string()];
+        let chars = vec![
+            CharacterType::FlamePoison,
+            CharacterType::WoodWind,
+            CharacterType::ThunderPoison,
+            CharacterType::WaterWind,
+        ];
+        Game::new(names, chars)
+    }
 
     #[test]
     fn test_game_initialization() {
@@ -712,5 +1000,388 @@ mod tests {
         for player in &game.players {
             assert_eq!(player.hand.len(), 5);
         }
+    }
+
+    // === 傷害類效果測試 ===
+
+    #[test]
+    fn test_effect_damage() {
+        let mut game = setup_test_game();
+        let target = 1;
+        let initial_hp = game.players[target].hp;
+
+        game.apply_effect(0, &EffectType::Damage(10), &[target], &[]).unwrap();
+
+        assert_eq!(game.players[target].hp, initial_hp - 10);
+    }
+
+    #[test]
+    fn test_effect_double_damage() {
+        let mut game = setup_test_game();
+        let target = 1;
+        let initial_hp = game.players[target].hp;
+
+        game.apply_effect(0, &EffectType::DoubleDamage(5), &[target], &[]).unwrap();
+
+        // Should apply 5 damage twice = 10 total
+        assert_eq!(game.players[target].hp, initial_hp - 10);
+    }
+
+    #[test]
+    fn test_effect_triple_damage() {
+        let mut game = setup_test_game();
+        let target = 1;
+        let initial_hp = game.players[target].hp;
+
+        game.apply_effect(0, &EffectType::TripleDamage(3), &[target], &[]).unwrap();
+
+        // Should apply 3 damage three times = 9 total
+        assert_eq!(game.players[target].hp, initial_hp - 9);
+    }
+
+    #[test]
+    fn test_effect_increase_damage() {
+        let mut game = setup_test_game();
+        let caster = 0;
+        let target = 1;
+
+        // Set fire attribute to level 3
+        game.players[caster].attributes.fire = 3;
+        let initial_hp = game.players[target].hp;
+
+        // IncreaseDamage(2) with fire level 3 = 3 + 2 = 5 damage
+        // Plus fire Lv3 proficiency adds +1 damage = 6 total
+        game.apply_effect(caster, &EffectType::IncreaseDamage(2), &[target], &[AttributeType::Fire]).unwrap();
+
+        assert_eq!(game.players[target].hp, initial_hp - 6);
+    }
+
+    #[test]
+    fn test_effect_sub_mtd_damage() {
+        let mut game = setup_test_game();
+        let target = 1;
+
+        // Set target's wind and poison attributes
+        game.players[target].attributes.wind = 2;
+        game.players[target].attributes.poison = 3;
+        let initial_hp = game.players[target].hp;
+
+        // SubMTDDamage(2) with wind(2) + poison(3) = 5 * 2 = 10 damage
+        game.apply_effect(0, &EffectType::SubMTDDamage(2), &[target], &[]).unwrap();
+
+        assert_eq!(game.players[target].hp, initial_hp - 10);
+    }
+
+    #[test]
+    fn test_effect_shield_d_damage() {
+        let mut game = setup_test_game();
+        let caster = 0;
+        let target = 1;
+
+        // Give caster 5 shield
+        game.players[caster].shield = 5;
+        let initial_hp = game.players[target].hp;
+
+        // ShieldDDamage(3) with 5 shield = 3 + (5 * 2) = 13 damage
+        game.apply_effect(caster, &EffectType::ShieldDDamage(3), &[target], &[]).unwrap();
+
+        assert_eq!(game.players[target].hp, initial_hp - 13);
+    }
+
+    // === 屬性重置類效果測試 ===
+
+    #[test]
+    fn test_effect_flame_deallocation() {
+        let mut game = setup_test_game();
+        let caster = 0;
+
+        game.players[caster].attributes.fire = 5;
+        game.apply_effect(caster, &EffectType::FlameDeallocation, &[], &[]).unwrap();
+
+        assert_eq!(game.players[caster].attributes.fire, 0);
+    }
+
+    #[test]
+    fn test_effect_wood_deallocation() {
+        let mut game = setup_test_game();
+        let caster = 0;
+
+        game.players[caster].attributes.wood = 4;
+        game.apply_effect(caster, &EffectType::WoodDeallocation, &[], &[]).unwrap();
+
+        assert_eq!(game.players[caster].attributes.wood, 0);
+    }
+
+    #[test]
+    fn test_effect_spark_deallocation() {
+        let mut game = setup_test_game();
+        let caster = 0;
+
+        game.players[caster].attributes.thunder = 3;
+        game.apply_effect(caster, &EffectType::SparkDeallocation, &[], &[]).unwrap();
+
+        assert_eq!(game.players[caster].attributes.thunder, 0);
+    }
+
+    #[test]
+    fn test_effect_water_deallocation() {
+        let mut game = setup_test_game();
+        let caster = 0;
+
+        game.players[caster].attributes.water = 6;
+        game.apply_effect(caster, &EffectType::WaterDeallocation, &[], &[]).unwrap();
+
+        assert_eq!(game.players[caster].attributes.water, 0);
+    }
+
+    // === 治療類效果測試 ===
+
+    #[test]
+    fn test_effect_heal() {
+        let mut game = setup_test_game();
+        let target = 1;
+
+        // Damage target first
+        game.players[target].hp = 30;
+
+        game.apply_effect(0, &EffectType::Heal(10), &[target], &[]).unwrap();
+
+        assert_eq!(game.players[target].hp, 40);
+    }
+
+    #[test]
+    fn test_effect_heal_self() {
+        let mut game = setup_test_game();
+        let caster = 0;
+
+        game.players[caster].hp = 20;
+
+        game.apply_effect(caster, &EffectType::HealSelf(15), &[], &[]).unwrap();
+
+        assert_eq!(game.players[caster].hp, 35);
+    }
+
+    #[test]
+    fn test_effect_heal_capped_at_max() {
+        let mut game = setup_test_game();
+        let target = 1;
+
+        game.players[target].hp = 45;
+        let max_hp = game.players[target].max_hp;
+
+        game.apply_effect(0, &EffectType::Heal(20), &[target], &[]).unwrap();
+
+        assert_eq!(game.players[target].hp, max_hp);
+    }
+
+    // === 護盾類效果測試 ===
+
+    #[test]
+    fn test_effect_shield() {
+        let mut game = setup_test_game();
+        let target = 1;
+
+        game.apply_effect(0, &EffectType::Shield(8), &[target], &[]).unwrap();
+
+        assert_eq!(game.players[target].shield, 8);
+    }
+
+    #[test]
+    fn test_effect_shield_self() {
+        let mut game = setup_test_game();
+        let caster = 0;
+
+        game.apply_effect(caster, &EffectType::ShieldSelf(5), &[], &[]).unwrap();
+
+        assert_eq!(game.players[caster].shield, 5);
+    }
+
+    #[test]
+    fn test_effect_destroy_all_shield() {
+        let mut game = setup_test_game();
+
+        // Give everyone shields
+        for player in &mut game.players {
+            player.shield = 10;
+        }
+
+        game.apply_effect(0, &EffectType::DestroyAllShield, &[], &[]).unwrap();
+
+        for player in &game.players {
+            assert_eq!(player.shield, 0);
+        }
+    }
+
+    // === Buff類效果測試 ===
+
+    #[test]
+    fn test_effect_buff_one() {
+        let mut game = setup_test_game();
+        let target = 1;
+
+        game.apply_effect(0, &EffectType::BuffOne(BuffType::Immune), &[target], &[]).unwrap();
+
+        assert!(game.players[target].buffs.has(BuffType::Immune));
+    }
+
+    #[test]
+    fn test_effect_buff_forever() {
+        let mut game = setup_test_game();
+        let target = 1;
+
+        game.apply_effect(0, &EffectType::BuffForever(BuffType::Regeneration), &[target], &[]).unwrap();
+
+        assert!(game.players[target].buffs.has(BuffType::Regeneration));
+        if let Some(buff) = game.players[target].buffs.get(BuffType::Regeneration) {
+            assert!(matches!(buff.duration, BuffDuration::Permanent));
+        }
+    }
+
+    #[test]
+    fn test_effect_buff_self_turns() {
+        let mut game = setup_test_game();
+        let caster = 0;
+
+        game.apply_effect(caster, &EffectType::BuffSelfTwo(BuffType::BurningOut), &[], &[]).unwrap();
+
+        assert!(game.players[caster].buffs.has(BuffType::BurningOut));
+        if let Some(buff) = game.players[caster].buffs.get(BuffType::BurningOut) {
+            assert!(matches!(buff.duration, BuffDuration::Turns(2)));
+        }
+    }
+
+    #[test]
+    fn test_effect_buff_immunity_blocks_debuff() {
+        let mut game = setup_test_game();
+        let target = 1;
+
+        // Give target immunity first
+        game.players[target].buffs.add(Buff::new(BuffType::Immune, BuffDuration::Permanent));
+
+        // Try to apply debuff
+        game.apply_effect(0, &EffectType::BuffOne(BuffType::Paralysis), &[target], &[]).unwrap();
+
+        // Should not have paralysis due to immunity
+        assert!(!game.players[target].buffs.has(BuffType::Paralysis));
+    }
+
+    #[test]
+    fn test_effect_health_drain() {
+        let mut game = setup_test_game();
+        let caster = 0;
+        let target = 1;
+
+        game.apply_effect(caster, &EffectType::HealthDrain, &[target], &[]).unwrap();
+
+        // Caster should have HealthDrain buff
+        assert!(game.players[caster].buffs.has(BuffType::HealthDrain));
+        // Target should have HealthDrainTarget debuff
+        assert!(game.players[target].buffs.has(BuffType::HealthDrainTarget));
+    }
+
+    #[test]
+    fn test_effect_guard_wood_carving() {
+        let mut game = setup_test_game();
+        let target = 2; // Ally
+
+        game.apply_effect(0, &EffectType::GuardWoodCarving(BuffType::GuardWoodCarving), &[target], &[]).unwrap();
+
+        assert!(game.players[target].buffs.has(BuffType::GuardWoodCarving));
+        if let Some(buff) = game.players[target].buffs.get(BuffType::GuardWoodCarving) {
+            assert_eq!(buff.data, Some(3));
+        }
+    }
+
+    #[test]
+    fn test_effect_remove_all_buff() {
+        let mut game = setup_test_game();
+
+        // Give everyone some debuffs
+        for player in &mut game.players {
+            player.buffs.add(Buff::new(BuffType::Paralysis, BuffDuration::Permanent));
+            player.buffs.add(Buff::new(BuffType::Silent, BuffDuration::Permanent));
+        }
+
+        game.apply_effect(0, &EffectType::RemoveAllBuff, &[], &[]).unwrap();
+
+        // All debuffs should be cleared
+        for player in &game.players {
+            assert!(!player.buffs.has(BuffType::Paralysis));
+            assert!(!player.buffs.has(BuffType::Silent));
+        }
+    }
+
+    // === 屬性點操作類效果測試 ===
+
+    #[test]
+    fn test_effect_remove_main_mt_ap() {
+        let mut game = setup_test_game();
+        let target = 1;
+
+        // Set up target attributes
+        game.players[target].attributes.fire = 3;
+        game.players[target].attributes.wood = 2;
+        game.players[target].hand.push(1);
+        game.players[target].hand.push(2);
+        let initial_hand_size = game.players[target].hand.len();
+
+        game.apply_effect(0, &EffectType::RemoveMainMTAP(4), &[target], &[]).unwrap();
+
+        // Should have removed 4 attribute points total
+        let remaining = game.players[target].attributes.fire + game.players[target].attributes.wood;
+        assert_eq!(remaining, 1);
+
+        // Should have discarded 1 card
+        assert_eq!(game.players[target].hand.len(), initial_hand_size - 1);
+    }
+
+    #[test]
+    fn test_effect_remove_ap() {
+        let mut game = setup_test_game();
+        let target = 1;
+
+        game.players[target].attributes.fire = 2;
+        game.players[target].attributes.wood = 3;
+        game.players[target].attributes.wind = 1;
+
+        game.apply_effect(0, &EffectType::RemoveAP(5), &[target], &[]).unwrap();
+
+        // Should have removed 5 points total from all attributes
+        let total = game.players[target].attributes.fire +
+                    game.players[target].attributes.wood +
+                    game.players[target].attributes.wind;
+        assert_eq!(total, 1);
+    }
+
+    // === 卡牌操作類效果測試 ===
+
+    #[test]
+    fn test_effect_random_discard() {
+        let mut game = setup_test_game();
+        let target = 1;
+
+        game.players[target].hand.push(10);
+        game.players[target].hand.push(11);
+        game.players[target].hand.push(12);
+        let initial_hand_size = game.players[target].hand.len();
+
+        game.apply_effect(0, &EffectType::RandomDiscard, &[target], &[]).unwrap();
+
+        assert_eq!(game.players[target].hand.len(), initial_hand_size - 1);
+    }
+
+    // === 特殊類效果測試 ===
+
+    #[test]
+    fn test_effect_dearouse() {
+        let mut game = setup_test_game();
+        let target = 1;
+
+        // Liberate the character first
+        game.players[target].character.is_liberated = true;
+
+        game.apply_effect(0, &EffectType::Dearouse, &[target], &[]).unwrap();
+
+        assert!(!game.players[target].character.is_liberated);
     }
 }

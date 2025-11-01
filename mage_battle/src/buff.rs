@@ -264,3 +264,324 @@ impl Default for BuffList {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // === Buff Duration Tests ===
+
+    #[test]
+    fn test_buff_duration_turns() {
+        let mut buff = Buff::new(BuffType::Immune, BuffDuration::Turns(3));
+
+        assert!(!buff.is_expired());
+        buff.tick();
+        assert!(!buff.is_expired());
+        buff.tick();
+        assert!(!buff.is_expired());
+        buff.tick();
+        assert!(buff.is_expired());
+    }
+
+    #[test]
+    fn test_buff_duration_permanent() {
+        let mut buff = Buff::new(BuffType::Regeneration, BuffDuration::Permanent);
+
+        for _ in 0..10 {
+            buff.tick();
+            assert!(!buff.is_expired());
+        }
+    }
+
+    #[test]
+    fn test_buff_duration_until_next_player() {
+        let mut buff = Buff::new(BuffType::Invincible, BuffDuration::UntilNextPlayer);
+
+        assert!(!buff.is_expired());
+        buff.tick();
+        // UntilNextPlayer expires on tick
+        assert!(!buff.is_expired()); // But is_expired checks the duration value
+    }
+
+    #[test]
+    fn test_buff_duration_until_hit() {
+        let mut buff = Buff::new_with_data(BuffType::GuardWoodCarving, BuffDuration::UntilHit(3), 3);
+
+        assert!(!buff.is_expired());
+        // This should be handled externally when taking damage
+        if let Some(hits) = buff.data.as_mut() {
+            *hits -= 1;
+        }
+        assert!(!buff.is_expired());
+    }
+
+    // === BuffList Tests ===
+
+    #[test]
+    fn test_buff_list_add_and_has() {
+        let mut buffs = BuffList::new();
+
+        buffs.add(Buff::new(BuffType::Immune, BuffDuration::Turns(1)));
+        assert!(buffs.has(BuffType::Immune));
+        assert!(!buffs.has(BuffType::Paralysis));
+    }
+
+    #[test]
+    fn test_buff_list_add_duplicate_extends_duration() {
+        let mut buffs = BuffList::new();
+
+        buffs.add(Buff::new(BuffType::Regeneration, BuffDuration::Turns(2)));
+        buffs.add(Buff::new(BuffType::Regeneration, BuffDuration::Turns(5)));
+
+        // Should take the longer duration
+        if let Some(buff) = buffs.get(BuffType::Regeneration) {
+            assert!(matches!(buff.duration, BuffDuration::Turns(5)));
+        } else {
+            panic!("Buff not found");
+        }
+    }
+
+    #[test]
+    fn test_buff_list_add_permanent_overrides() {
+        let mut buffs = BuffList::new();
+
+        buffs.add(Buff::new(BuffType::BurningOut, BuffDuration::Turns(3)));
+        buffs.add(Buff::new(BuffType::BurningOut, BuffDuration::Permanent));
+
+        if let Some(buff) = buffs.get(BuffType::BurningOut) {
+            assert!(matches!(buff.duration, BuffDuration::Permanent));
+        } else {
+            panic!("Buff not found");
+        }
+    }
+
+    #[test]
+    fn test_buff_list_remove() {
+        let mut buffs = BuffList::new();
+
+        buffs.add(Buff::new(BuffType::Immune, BuffDuration::Permanent));
+        assert!(buffs.has(BuffType::Immune));
+
+        buffs.remove(BuffType::Immune);
+        assert!(!buffs.has(BuffType::Immune));
+    }
+
+    #[test]
+    fn test_buff_list_tick_all() {
+        let mut buffs = BuffList::new();
+
+        buffs.add(Buff::new(BuffType::Immune, BuffDuration::Turns(1)));
+        buffs.add(Buff::new(BuffType::Paralysis, BuffDuration::Turns(2)));
+
+        buffs.tick_all();
+
+        // Immune should expire
+        assert!(!buffs.has(BuffType::Immune));
+        // Paralysis should still be there
+        assert!(buffs.has(BuffType::Paralysis));
+    }
+
+    #[test]
+    fn test_buff_list_clear_debuffs() {
+        let mut buffs = BuffList::new();
+
+        buffs.add(Buff::new(BuffType::Immune, BuffDuration::Permanent));
+        buffs.add(Buff::new(BuffType::Paralysis, BuffDuration::Permanent));
+        buffs.add(Buff::new(BuffType::Silent, BuffDuration::Permanent));
+        buffs.add(Buff::new(BuffType::Regeneration, BuffDuration::Permanent));
+
+        buffs.clear_debuffs();
+
+        // Buffs should remain
+        assert!(buffs.has(BuffType::Immune));
+        assert!(buffs.has(BuffType::Regeneration));
+
+        // Debuffs should be cleared
+        assert!(!buffs.has(BuffType::Paralysis));
+        assert!(!buffs.has(BuffType::Silent));
+    }
+
+    #[test]
+    fn test_buff_list_clear_all() {
+        let mut buffs = BuffList::new();
+
+        buffs.add(Buff::new(BuffType::Immune, BuffDuration::Permanent));
+        buffs.add(Buff::new(BuffType::Paralysis, BuffDuration::Permanent));
+
+        buffs.clear_all();
+
+        assert!(!buffs.has(BuffType::Immune));
+        assert!(!buffs.has(BuffType::Paralysis));
+    }
+
+    // === Buff Type Behavior Tests ===
+
+    #[test]
+    fn test_buff_type_is_debuff() {
+        assert!(BuffType::Paralysis.is_debuff());
+        assert!(BuffType::Seal.is_debuff());
+        assert!(BuffType::Silent.is_debuff());
+        assert!(BuffType::MasterDisable.is_debuff());
+        assert!(BuffType::DefenseInvalidation.is_debuff());
+        assert!(BuffType::Confuse.is_debuff());
+        assert!(BuffType::HealthDrainTarget.is_debuff());
+
+        assert!(!BuffType::Immune.is_debuff());
+        assert!(!BuffType::Regeneration.is_debuff());
+    }
+
+    #[test]
+    fn test_buff_type_is_buff() {
+        assert!(BuffType::Immune.is_buff());
+        assert!(BuffType::Invincible.is_buff());
+        assert!(BuffType::Regeneration.is_buff());
+        assert!(BuffType::BurningOut.is_buff());
+        assert!(BuffType::GuardWoodCarving.is_buff());
+
+        assert!(!BuffType::Paralysis.is_buff());
+        assert!(!BuffType::Silent.is_buff());
+    }
+
+    // === Immunity Tests ===
+
+    #[test]
+    fn test_immunity_to_damage() {
+        let mut buffs = BuffList::new();
+
+        assert!(!buffs.is_immune_to_damage());
+
+        buffs.add(Buff::new(BuffType::Immune, BuffDuration::Permanent));
+        assert!(buffs.is_immune_to_damage());
+    }
+
+    #[test]
+    fn test_invincible_immunity_to_damage() {
+        let mut buffs = BuffList::new();
+
+        buffs.add(Buff::new(BuffType::Invincible, BuffDuration::UntilNextPlayer));
+        assert!(buffs.is_immune_to_damage());
+    }
+
+    #[test]
+    fn test_immunity_to_debuff() {
+        let mut buffs = BuffList::new();
+
+        assert!(!buffs.is_immune_to_debuff());
+
+        buffs.add(Buff::new(BuffType::Immune, BuffDuration::Permanent));
+        assert!(buffs.is_immune_to_debuff());
+
+        buffs.clear_all();
+        buffs.add(Buff::new(BuffType::Invincible, BuffDuration::UntilNextPlayer));
+        assert!(buffs.is_immune_to_debuff());
+    }
+
+    // === Action Restriction Tests ===
+
+    #[test]
+    fn test_can_act_with_paralysis() {
+        let mut buffs = BuffList::new();
+
+        assert!(buffs.can_act());
+
+        buffs.add(Buff::new(BuffType::Paralysis, BuffDuration::Turns(1)));
+        assert!(!buffs.can_act());
+    }
+
+    #[test]
+    fn test_can_liberate_with_seal() {
+        let mut buffs = BuffList::new();
+
+        assert!(buffs.can_liberate());
+
+        buffs.add(Buff::new(BuffType::Seal, BuffDuration::Turns(2)));
+        assert!(!buffs.can_liberate());
+    }
+
+    #[test]
+    fn test_only_basic_spell_with_silent() {
+        let mut buffs = BuffList::new();
+
+        assert!(!buffs.only_basic_spell());
+
+        buffs.add(Buff::new(BuffType::Silent, BuffDuration::Turns(1)));
+        assert!(buffs.only_basic_spell());
+    }
+
+    #[test]
+    fn test_has_mastery_with_master_disable() {
+        let mut buffs = BuffList::new();
+
+        assert!(buffs.has_mastery());
+
+        buffs.add(Buff::new(BuffType::MasterDisable, BuffDuration::Turns(3)));
+        assert!(!buffs.has_mastery());
+    }
+
+    #[test]
+    fn test_can_heal_or_shield_with_defense_invalidation() {
+        let mut buffs = BuffList::new();
+
+        assert!(buffs.can_heal_or_shield());
+
+        buffs.add(Buff::new(BuffType::DefenseInvalidation, BuffDuration::Turns(2)));
+        assert!(!buffs.can_heal_or_shield());
+    }
+
+    // === Special Buff Data Tests ===
+
+    #[test]
+    fn test_health_drain_with_target_data() {
+        let target_id = 2;
+        let buff = Buff::new_with_data(BuffType::HealthDrain, BuffDuration::Permanent, target_id);
+
+        assert_eq!(buff.data, Some(target_id));
+        assert_eq!(buff.buff_type, BuffType::HealthDrain);
+    }
+
+    #[test]
+    fn test_guard_wood_carving_hit_count() {
+        let mut buff = Buff::new_with_data(BuffType::GuardWoodCarving, BuffDuration::UntilHit(3), 3);
+
+        assert_eq!(buff.data, Some(3));
+
+        // Simulate taking hits
+        if let Some(hits) = buff.data.as_mut() {
+            *hits -= 1;
+            assert_eq!(*hits, 2);
+
+            *hits -= 1;
+            assert_eq!(*hits, 1);
+
+            *hits -= 1;
+            assert_eq!(*hits, 0);
+        }
+    }
+
+    // === Buff Display Tests ===
+
+    #[test]
+    fn test_buff_to_string() {
+        assert_eq!(BuffType::Immune.to_string(), "免疫");
+        assert_eq!(BuffType::Invincible.to_string(), "化身");
+        assert_eq!(BuffType::Paralysis.to_string(), "癱瘓");
+        assert_eq!(BuffType::Seal.to_string(), "封印");
+        assert_eq!(BuffType::Silent.to_string(), "沈默");
+        assert_eq!(BuffType::MasterDisable.to_string(), "元素剝離");
+        assert_eq!(BuffType::DefenseInvalidation.to_string(), "防禦崩解");
+        assert_eq!(BuffType::Confuse.to_string(), "混亂");
+        assert_eq!(BuffType::HealthDrain.to_string(), "生命汲取");
+        assert_eq!(BuffType::HealthDrainTarget.to_string(), "寄主");
+        assert_eq!(BuffType::Regeneration.to_string(), "再生");
+        assert_eq!(BuffType::BurningOut.to_string(), "燃燒殆盡");
+        assert_eq!(BuffType::GuardWoodCarving.to_string(), "守護木雕");
+    }
+
+    #[test]
+    fn test_buff_description() {
+        assert_eq!(BuffType::Immune.description(), "免疫傷害與負面效果");
+        assert_eq!(BuffType::Paralysis.description(), "無法行動");
+        assert_eq!(BuffType::Regeneration.description(), "回合開始時回復7點生命");
+    }
+}
