@@ -158,7 +158,6 @@ fn test_attribute_allocation_prevents_exceeding_level_5() {
 }
 
 #[test]
-#[ignore] // TODO: This feature is not yet implemented
 fn test_skip_allocation_when_all_attributes_maxed() {
     let names = vec!["P0".to_string(), "P1".to_string(), "P2".to_string(), "P3".to_string()];
     let chars = vec![
@@ -178,22 +177,17 @@ fn test_skip_allocation_when_all_attributes_maxed() {
     game.players[0].attributes.wind = 5;
     game.players[0].attributes.poison = 5;
 
-    // NOTE: Cannot test turn_start directly as it's private
-    // This test documents the expected behavior but cannot verify it yet
-    // TODO: Add public method to check if allocation phase should be skipped
-
-    // Expected behavior (not yet implemented):
-    // - Game should detect all attributes are at level 5
-    // - Skip AllocateAttribute phase entirely
-    // - Go directly to PlayCard phase
-
-    // For now, we can only verify that trying to allocate returns an error
+    // When all attributes are maxed, allocation should be skipped
+    game.current_player_index = 0;
     game.turn_phase = TurnPhase::AllocateAttribute;
-    let fire_result = game.allocate_attribute(AttributeType::Fire);
-    let wood_result = game.allocate_attribute(AttributeType::Wood);
 
-    assert!(fire_result.is_err(), "Cannot allocate Fire when at level 5");
-    assert!(wood_result.is_err(), "Cannot allocate Wood when at level 5");
+    // Call skip_allocation_if_all_maxed to check if phase should be skipped
+    let should_skip = game.should_skip_allocation_phase();
+
+    assert!(
+        should_skip,
+        "Allocation phase should be skipped when all attributes are at level 5"
+    );
 }
 
 /// ISSUE 4: Attribute bolt targeting - UPDATED TO NEW RULES

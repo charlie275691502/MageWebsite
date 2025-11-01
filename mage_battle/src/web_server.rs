@@ -614,7 +614,7 @@ async fn play_attribute_bolt(
             }
         };
 
-        match game.play_attribute_bolt(req.card_id, attr_type) {
+        match game.play_attribute_bolt(req.card_id, attr_type, req.targets) {
             Ok(_) => {
                 let result = ActionResultDto {
                     success: true,

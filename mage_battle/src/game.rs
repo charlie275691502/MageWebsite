@@ -109,7 +109,7 @@ impl Game {
     }
 
     /// 處理回合開始
-    fn handle_turn_start(&mut self) {
+    pub fn handle_turn_start(&mut self) {
         let current_id = self.current_player_index;
         self.players[current_id].turn_start();
 
@@ -208,7 +208,8 @@ impl Game {
 
     /// 使用屬性彈 (C1-C6)
     /// Any card can be used to cast an attribute bolt by discarding it
-    pub fn play_attribute_bolt(&mut self, card_id: CardId, attr_type: AttributeType) -> Result<(), String> {
+    /// targets: 可選的目標玩家。如果未提供，默認為最遠敵人。如果風Lv5觸發，可自由選擇任何存活敵人。
+    pub fn play_attribute_bolt(&mut self, card_id: CardId, attr_type: AttributeType, targets: Option<Vec<PlayerId>>) -> Result<(), String> {
         if self.turn_phase != TurnPhase::PlayCard {
             return Err("不是出牌階段".to_string());
         }
@@ -231,30 +232,35 @@ impl Game {
             return Err("打出卡片失敗".to_string());
         }
 
-        // Map attribute type to spell ID (C1-C6)
-        let spell_id = match attr_type {
-            AttributeType::Fire => "C1",
-            AttributeType::Wood => "C2",
-            AttributeType::Thunder => "C3",
-            AttributeType::Water => "C4",
-            AttributeType::Wind => "C5",
-            AttributeType::Poison => "C6",
-        };
-
-        // Look up the attribute bolt spell from the database
-        // Find any card that has this spell (attribute bolts should be in cards.json or we get the spell directly)
-        // For now, we'll construct the spell effect manually based on the spell data
-        // Attribute bolt: deals damage equal to attribute level, target is furthest enemy
-
-        // Get furthest alive enemy
-        let target_id = self.get_furthest_alive_enemy(current_id)
-            .ok_or("沒有存活的敵人".to_string())?;
-
         // Create enchantments for proficiency calculation
         let enchantments = vec![attr_type];
 
-        // Apply IncreaseDamage(0) effect which adds attribute level
-        self.apply_effect(current_id, &EffectType::IncreaseDamage(0), &[target_id], &enchantments)?;
+        // 決定目標
+        let target_ids = if let Some(provided_targets) = targets {
+            // 檢查風Lv5是否被觸發（允許自由選擇目標）
+            let wind_lv5_active = self.is_wind_lv5_triggered(current_id, &enchantments);
+
+            // 驗證提供的目標是否有效
+            self.validate_bolt_targets(current_id, &provided_targets, wind_lv5_active)?
+        } else {
+            // 未提供目標，使用默認的最遠敵人
+            let target_id = self.get_furthest_alive_enemy(current_id)
+                .ok_or("沒有存活的敵人".to_string())?;
+            vec![target_id]
+        };
+
+        // 火Lv3: 所有屬性彈+1 (只對屬性彈適用)
+        let base_damage = if self.players[current_id].attributes.fire >= 3 {
+            1 // Fire Lv3 bonus applies to ALL attribute bolts (+1 damage)
+        } else {
+            0
+        };
+
+        // Apply IncreaseDamage effect which adds attribute level + bonuses
+        let effects = vec![EffectType::IncreaseDamage(base_damage)];
+
+        // Use common effect execution logic
+        self.execute_card_effects(current_id, &enchantments, &target_ids, effects)?;
 
         self.turn_phase = TurnPhase::DrawCard;
         Ok(())
@@ -296,7 +302,21 @@ impl Game {
             CardSide::Top => card.top_spell.clone(),
             CardSide::Bottom => card.bottom_spell.as_ref().unwrap().clone(),
         };
-        self.execute_spell_effect(current_id, &spell, targets)?;
+
+        // 獲取法術的所有屬性需求
+        let enchantments: Vec<AttributeType> = spell
+            .requirements
+            .iter()
+            .map(|(attr, _)| *attr)
+            .collect();
+
+        // 檢查風Lv5是否被觸發
+        let wind_lv5_active = self.is_wind_lv5_triggered(current_id, &enchantments);
+
+        // 驗證目標
+        let validated_targets = self.validate_spell_targets(current_id, &targets, wind_lv5_active)?;
+
+        self.execute_spell_effect(current_id, &spell, validated_targets)?;
 
         self.turn_phase = TurnPhase::DrawCard;
         Ok(())
@@ -385,6 +405,52 @@ impl Game {
         Ok(())
     }
 
+    /// 共同的卡片效果執行邏輯（處理所有屬性專精和效果）
+    /// 用於法術卡和屬性彈的共同處理
+    fn execute_card_effects(
+        &mut self,
+        caster_id: PlayerId,
+        enchantments: &[AttributeType],
+        targets: &[PlayerId],
+        effects: Vec<EffectType>,
+    ) -> Result<(), String> {
+        // 木Lv3專精：使用木屬性法術時，減少1點生命並獲得1點護盾（不受木Lv5影響，不受護盾影響）
+        if enchantments.contains(&AttributeType::Wood) && self.players[caster_id].attributes.wood >= 3 {
+            self.players[caster_id].hp -= 1;
+            if self.players[caster_id].hp <= 0 {
+                self.players[caster_id].hp = 0;
+                self.players[caster_id].is_dead = true;
+                self.players[caster_id].death_turns = 0;
+                self.players[caster_id].hand.clear();
+                self.players[caster_id].buffs.clear_all();
+            }
+            self.players[caster_id].shield += 1;
+        }
+
+        // 執行所有效果
+        for effect in effects {
+            self.apply_effect(caster_id, &effect, targets, enchantments)?;
+        }
+
+        // 水Lv3/Lv5專精：使用水屬性卡片時的治療效果（在效果計算後執行）
+        if enchantments.contains(&AttributeType::Water) {
+            let caster_water = self.players[caster_id].attributes.water;
+            // 水Lv3: 使用水屬卡片時，回復自身1點生命
+            if caster_water >= 3 {
+                self.players[caster_id].heal(1);
+            }
+            // 水Lv5: 使用水屬卡片時，回復自己與隊友1點生命
+            if caster_water >= 5 {
+                let teammate_id = self.players[caster_id].teammate_id();
+                if teammate_id < self.players.len() {
+                    self.players[teammate_id].heal(1);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// 執行法術效果（包含屬性專精加成）
     fn execute_spell_effect(
         &mut self,
@@ -399,34 +465,18 @@ impl Game {
             .map(|(attr, _)| *attr)
             .collect();
 
-        // 木Lv3專精：使用木屬性法術時，減少1點生命並獲得1點護盾（不受木Lv5影響，不受護盾影響）
-        let has_wood = enchantments.contains(&AttributeType::Wood);
-        let caster_wood = self.players[caster_id].attributes.wood;
-        if has_wood && caster_wood >= 3 {
-            self.players[caster_id].hp -= 1;
-            if self.players[caster_id].hp <= 0 {
-                self.players[caster_id].hp = 0;
-                self.players[caster_id].is_dead = true;
-                self.players[caster_id].death_turns = 0;
-                self.players[caster_id].hand.clear();
-                self.players[caster_id].buffs.clear_all();
-            }
-            self.players[caster_id].shield += 1;
-        }
-
-        // 執行 effect1
-        self.apply_effect(caster_id, &spell.effect.effect1, &targets, &enchantments)?;
-
-        // 執行 effect2（如果存在）
+        // 構建效果列表
+        let mut effects = vec![spell.effect.effect1.clone()];
         if let Some(effect2) = &spell.effect.effect2 {
-            self.apply_effect(caster_id, effect2, &targets, &enchantments)?;
+            effects.push(effect2.clone());
         }
 
-        Ok(())
+        // 使用共同的效果執行邏輯
+        self.execute_card_effects(caster_id, &enchantments, &targets, effects)
     }
 
     /// 應用單個效果
-    fn apply_effect(
+    pub fn apply_effect(
         &mut self,
         caster_id: PlayerId,
         effect: &EffectType,
@@ -753,19 +803,16 @@ impl Game {
         targets: &[PlayerId],
         enchantments: &[AttributeType],
     ) -> Result<(), String> {
+        use crate::buff::{Buff, BuffDuration};
+
         // 複製施法者的屬性值以避免借用衝突
-        let caster_fire = self.players[caster_id].attributes.fire;
         let caster_thunder = self.players[caster_id].attributes.thunder;
+        let caster_wind = self.players[caster_id].attributes.wind;
+        let caster_poison = self.players[caster_id].attributes.poison;
 
         // 應用屬性專精加成
         for attr in enchantments {
             match attr {
-                AttributeType::Fire => {
-                    // 火Lv3: 所有屬性彈+1 (也適用於火屬性法術)
-                    if caster_fire >= 3 {
-                        base_damage += 1;
-                    }
-                }
                 AttributeType::Thunder => {
                     // 雷Lv3: 雷屬性卡片傷害+1
                     if caster_thunder >= 3 {
@@ -792,6 +839,20 @@ impl Game {
             }
 
             self.players[target_id].take_damage(base_damage, crate::damage::DamageType::Spell);
+
+            // 應用風Lv2效果：目標無法回復生命或獲得護盾
+            if enchantments.contains(&AttributeType::Wind) && caster_wind >= 2 {
+                if !self.players[target_id].buffs.is_immune_to_debuff() {
+                    self.players[target_id].buffs.add(Buff::new(crate::buff::BuffType::DefenseInvalidation, BuffDuration::Turns(1)));
+                }
+            }
+
+            // 應用毒Lv2效果：目標必須先出卡片再配屬性點
+            if enchantments.contains(&AttributeType::Poison) && caster_poison >= 2 {
+                if !self.players[target_id].buffs.is_immune_to_debuff() {
+                    self.players[target_id].buffs.add(Buff::new(crate::buff::BuffType::Confuse, BuffDuration::Turns(1)));
+                }
+            }
         }
 
         Ok(())
@@ -942,12 +1003,95 @@ impl Game {
 
         self.check_game_over();
     }
+
+    /// 檢查風Lv5專精是否被觸發
+    /// 風Lv5: 風屬性卡片可自由選擇對象
+    pub fn is_wind_lv5_triggered(&self, caster_id: PlayerId, enchantments: &[AttributeType]) -> bool {
+        let has_wind = enchantments.contains(&AttributeType::Wind);
+        let caster_wind = self.players[caster_id].attributes.wind;
+        has_wind && caster_wind >= 5
+    }
+
+    /// 檢查當前玩家是否應該跳過屬性分配階段
+    /// 當所有屬性都達到Lv5時，跳過AllocateAttribute階段，直接進入PlayCard階段
+    pub fn should_skip_allocation_phase(&self) -> bool {
+        let current_player = &self.players[self.current_player_index];
+        current_player.attributes.fire >= 5
+            && current_player.attributes.wood >= 5
+            && current_player.attributes.thunder >= 5
+            && current_player.attributes.water >= 5
+            && current_player.attributes.wind >= 5
+            && current_player.attributes.poison >= 5
+    }
+
+    /// 驗證屬性彈的目標是否有效
+    /// wind_lv5_active: 如果為true，允許選擇任何存活敵人；否則只允許選擇最遠敵人
+    pub fn validate_bolt_targets(&self, caster_id: PlayerId, targets: &[PlayerId], wind_lv5_active: bool) -> Result<Vec<PlayerId>, String> {
+        if targets.is_empty() {
+            return Err("必須選擇至少一個目標".to_string());
+        }
+
+        // 驗證所有目標都是敵人並且存活
+        for &target_id in targets {
+            if target_id >= self.players.len() {
+                return Err(format!("目標玩家{}不存在", target_id));
+            }
+
+            if self.players[target_id].is_dead {
+                return Err(format!("目標玩家{}已死亡", target_id));
+            }
+
+            // 檢查目標是否為同隊隊友（不是敵人）
+            if self.players[target_id].team == self.players[caster_id].team {
+                return Err("不能以隊友為目標".to_string());
+            }
+        }
+
+        // 如果風Lv5沒有觸發，檢查目標是否為最遠敵人
+        if !wind_lv5_active {
+            let furthest_enemy = self.get_furthest_alive_enemy(caster_id)
+                .ok_or("沒有存活的敵人".to_string())?;
+
+            // 屬性彈默認只能攻擊最遠敵人
+            if targets.len() != 1 || targets[0] != furthest_enemy {
+                return Err(format!("屬性彈只能攻擊最遠敵人，但你選擇了其他目標"));
+            }
+        }
+
+        Ok(targets.to_vec())
+    }
+
+    /// 驗證法術卡的目標是否有效
+    /// wind_lv5_active: 如果為true，允許目標不符合法術的默認限制
+    fn validate_spell_targets(&self, caster_id: PlayerId, targets: &[PlayerId], _wind_lv5_active: bool) -> Result<Vec<PlayerId>, String> {
+        if targets.is_empty() {
+            return Err("必須選擇至少一個目標".to_string());
+        }
+
+        // 驗證所有目標都存在且存活
+        for &target_id in targets {
+            if target_id >= self.players.len() {
+                return Err(format!("目標玩家{}不存在", target_id));
+            }
+
+            if self.players[target_id].is_dead {
+                return Err(format!("目標玩家{}已死亡", target_id));
+            }
+        }
+
+        // 注意：風Lv5允許自由選擇，包括友方。具體的法術限制（如只能攻擊敵人）
+        // 應該在法術設計時決定。後端這裡只檢查玩家是否存活。
+        // 風Lv5激活時，前端應該允許選擇任何玩家。
+
+        Ok(targets.to_vec())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::buff::{Buff, BuffDuration, BuffType};
+    use crate::player::TeamId;
 
     fn setup_test_game() -> Game {
         let names = vec!["P1".to_string(), "P2".to_string(), "P3".to_string(), "P4".to_string()];
@@ -1029,10 +1173,11 @@ mod tests {
         let initial_hp = game.players[target].hp;
 
         // IncreaseDamage(2) with fire level 3 = 3 + 2 = 5 damage
-        // Plus fire Lv3 proficiency adds +1 damage = 6 total
+        // Note: Fire Lv3 proficiency ONLY applies to attribute bolts, NOT to spell cards
+        // So apply_effect() does NOT trigger Fire Lv3 bonus
         game.apply_effect(caster, &EffectType::IncreaseDamage(2), &[target], &[AttributeType::Fire]).unwrap();
 
-        assert_eq!(game.players[target].hp, initial_hp - 6);
+        assert_eq!(game.players[target].hp, initial_hp - 5);
     }
 
     #[test]
@@ -1435,8 +1580,10 @@ mod tests {
         // Pass Fire as enchantment to trigger proficiency
         game.apply_effect(0, &EffectType::Damage(10), &[target], &[AttributeType::Fire]).unwrap();
 
-        // Should deal 10 + 1 (fire lv3 proficiency) = 11 damage
-        assert_eq!(game.players[target].hp, initial_hp - 11);
+        // Should deal 10 damage
+        // Note: Fire Lv3 proficiency ONLY applies to attribute bolts, NOT to regular spells
+        // So apply_effect() with Damage effect does NOT trigger Fire Lv3 bonus
+        assert_eq!(game.players[target].hp, initial_hp - 10);
     }
 
     #[test]
@@ -1505,8 +1652,10 @@ mod tests {
         // Pass Fire as enchantment so IncreaseDamage knows which attribute to use
         game.apply_effect(0, &EffectType::IncreaseDamage(2), &[target], &[AttributeType::Fire]).unwrap();
 
-        // Should deal 3 (fire level) + 2 (bonus) + 1 (fire lv3 proficiency) = 6 damage
-        assert_eq!(game.players[target].hp, initial_hp - 6);
+        // Should deal 3 (fire level) + 2 (bonus) = 5 damage
+        // Note: Fire Lv3 proficiency ONLY applies to attribute bolts, NOT to spell cards
+        // So apply_effect() does NOT trigger Fire Lv3 bonus
+        assert_eq!(game.players[target].hp, initial_hp - 5);
     }
 
     #[test]

@@ -816,7 +816,7 @@ function App() {
     if (!gameId) return;
     try {
       setLoading(true);
-      const result = await gameApi.playAttributeBolt(gameId, cardId, attr);
+      const result = await gameApi.playAttributeBolt(gameId, cardId, attr, targets.length > 0 ? targets : undefined);
       addLog(result);
       setSelectedCard(null);
       setCardAction(null);
@@ -1752,6 +1752,19 @@ function App() {
                                     !player.is_dead &&
                                     player.id === furthestEnemy;
 
+                                  // Check if Wind Lv2 proficiency will apply
+                                  const spellEnchantments = extractEnchantments(
+                                    spell.cost
+                                  );
+                                  const windLv2Applied =
+                                    spellEnchantments.includes("Wind") &&
+                                    myPlayer.attributes.wind >= 2;
+
+                                  // Check if Poison Lv2 proficiency will apply
+                                  const poisonLv2Applied =
+                                    spellEnchantments.includes("Poison") &&
+                                    myPlayer.attributes.poison >= 2;
+
                                   return (
                                     <button
                                       key={player.id}
@@ -1779,6 +1792,16 @@ function App() {
                                         {player.shield > 0 &&
                                           ` | 🛡️ ${player.shield}`}
                                       </div>
+                                      {windLv2Applied && (
+                                        <div className="debuff-warning">
+                                          🚫 無法回復/護盾
+                                        </div>
+                                      )}
+                                      {poisonLv2Applied && (
+                                        <div className="debuff-warning">
+                                          ⏱️ 先出卡片
+                                        </div>
+                                      )}
                                     </button>
                                   );
                                 })}
@@ -1850,6 +1873,11 @@ function App() {
                                     !player.is_dead &&
                                     player.id === furthestEnemy;
 
+                                  // Check if Wind Lv2 proficiency will apply
+                                  const windLv2Applied =
+                                    selectedBoltAttr === "Wind" &&
+                                    myPlayer.attributes.wind >= 2;
+
                                   return (
                                     <button
                                       key={player.id}
@@ -1875,6 +1903,11 @@ function App() {
                                         {player.shield > 0 &&
                                           ` | 🛡️ ${player.shield}`}
                                       </div>
+                                      {windLv2Applied && (
+                                        <div className="debuff-warning">
+                                          🚫 無法回復/護盾
+                                        </div>
+                                      )}
                                     </button>
                                   );
                                 })}

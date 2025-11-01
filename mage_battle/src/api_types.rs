@@ -161,6 +161,7 @@ pub struct AllocateAttributeRequest {
 pub struct PlayAttributeBoltRequest {
     pub card_id: CardId,  // 使用哪張卡（任何卡都可以）
     pub attribute: String,  // 使用哪個屬性彈 "Fire", "Wood", "Thunder", "Water", "Wind", "Poison"
+    pub targets: Option<Vec<PlayerId>>,  // 目標玩家（可選，默認為最遠敵人；若風Lv5則可自由選擇）
 }
 
 /// 打出法術卡請求
