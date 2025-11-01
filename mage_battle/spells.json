@@ -93,8 +93,8 @@
       "name": "奧義：老樹",
       "cost": "木5",
       "description": "賦予自身「免疫」兩回合",
-      "target_pool": "Default",
-      "effects": [{"type": "ApplyStatusSelf", "params": ["Immunity", 2]}]
+      "target_pool": "Self_",
+      "effects": [{"type": "BuffSelfTwo", "params": ["Immune"]}]
     },
     {
       "spell_id": "A13",
@@ -300,7 +300,7 @@
       "target_pool": "Default",
       "effects": [
         {"type": "Damage", "params": [7]},
-        {"type": "ApplyStatusSelf", "params": ["Avatar", 1]}
+        {"type": "BuffSelfOne", "params": ["Invincible"]}
       ]
     },
     {
@@ -376,7 +376,7 @@
       "target_pool": "Default",
       "effects": [
         {"type": "Damage", "params": [5]},
-        {"type": "ApplyStatus", "params": ["Seal", 1]}
+        {"type": "BuffOne", "params": ["Seal"]}
       ]
     },
     {
@@ -387,7 +387,7 @@
       "target_pool": "Default",
       "effects": [
         {"type": "Damage", "params": [7]},
-        {"type": "ApplyStatus", "params": ["ElementStrip", 1]}
+        {"type": "BuffOne", "params": ["MasterDisable"]}
       ]
     },
     {
@@ -439,7 +439,7 @@
       "target_pool": "Default",
       "effects": [
         {"type": "Damage", "params": [7]},
-        {"type": "ApplyStatusSelf", "params": ["Avatar", 1]}
+        {"type": "BuffSelfOne", "params": ["Invincible"]}
       ]
     },
     {
@@ -460,7 +460,7 @@
       "cost": "水4 毒4",
       "description": "賦予目標永久「生命汲取」。每個自己回合開始時對其造成1點傷害並回復1點生命。視為一個負面狀態",
       "target_pool": "Default",
-      "effects": [{"type": "ApplyStatus", "params": ["LifeDrain", -1]}]
+      "effects": [{"type": "HealthDrain", "params": []}]
     },
     {
       "spell_id": "B29",
@@ -490,7 +490,7 @@
       "cost": "風3 毒3",
       "description": "賦予指定目標「癱瘓」一回合",
       "target_pool": "ChooseFromEnemies",
-      "effects": [{"type": "ApplyStatus", "params": ["Paralysis", 1]}]
+      "effects": [{"type": "BuffOne", "params": ["Paralysis"]}]
     },
     {
       "spell_id": "B32",

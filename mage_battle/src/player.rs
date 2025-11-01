@@ -177,7 +177,8 @@ impl Player {
 
     /// 回復生命
     pub fn heal(&mut self, amount: u32) -> u32 {
-        if !self.buffs.can_heal_or_shield() {
+        // Dead players cannot be healed
+        if self.is_dead || !self.buffs.can_heal_or_shield() {
             return 0;
         }
 
