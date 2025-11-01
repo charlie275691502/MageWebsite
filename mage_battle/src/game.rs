@@ -124,8 +124,16 @@ impl Game {
         if has_fire_lv5 {
             let enemy_ids = self.players[current_id].enemy_ids();
             for &enemy_id in &enemy_ids {
-                self.players[enemy_id].take_damage(1, crate::damage::DamageType::Skill);
+                // 檢查敵人ID是否有效（避免超出玩家數量範圍）
+                if enemy_id < self.players.len() && self.players[enemy_id].is_alive() {
+                    self.players[enemy_id].take_damage(1, crate::damage::DamageType::Skill);
+                }
             }
+        }
+
+        // 檢查Fire Lv5是否殺死所有敵人導致遊戲結束
+        if self.check_game_over() {
+            return;
         }
 
         // 處理生命汲取效果
