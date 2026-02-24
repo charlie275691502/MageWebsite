@@ -156,13 +156,6 @@ impl GameRoom {
             return Err("槽位未被占用".to_string());
         }
 
-        // 檢查角色是否已被選擇
-        for (i, s) in self.player_slots.iter().enumerate() {
-            if i != slot_id && s.character == Some(character) {
-                return Err("該角色已被其他玩家選擇".to_string());
-            }
-        }
-
         self.player_slots[slot_id].character = Some(character);
         self.update_state();
 
@@ -299,19 +292,6 @@ mod tests {
         let slot = room.join("Player2".to_string(), "conn2".to_string()).unwrap();
         assert_eq!(slot, 1);
         assert_eq!(room.player_count(), 2);
-    }
-
-    #[test]
-    fn test_character_selection() {
-        let mut room = GameRoom::new("123456".to_string(), "Host".to_string(), "conn1".to_string());
-        room.join("Player2".to_string(), "conn2".to_string()).unwrap();
-
-        room.select_character(0, CharacterType::FlamePoison).unwrap();
-        room.select_character(1, CharacterType::WoodWind).unwrap();
-
-        // 嘗試選擇相同角色應該失敗
-        let result = room.select_character(1, CharacterType::FlamePoison);
-        assert!(result.is_err());
     }
 
     #[test]

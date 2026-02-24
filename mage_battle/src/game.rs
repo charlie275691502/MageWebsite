@@ -34,6 +34,7 @@ pub struct Game {
     pub current_player_index: usize,
     pub turn_phase: TurnPhase,
     pub turn_number: u32,
+    pub action_log: Vec<String>,  // Recent actions for broadcasting to all players
 }
 
 impl Game {
@@ -65,6 +66,7 @@ impl Game {
             current_player_index: 0,
             turn_phase: TurnPhase::AllocateAttribute,
             turn_number: 1,
+            action_log: Vec::new(),
         };
 
         // 初始發牌（每人5張）
@@ -263,6 +265,15 @@ impl Game {
         // Use common effect execution logic
         self.execute_card_effects(current_id, &enchantments, &target_ids, effects)?;
 
+        // Log the action for all players
+        let player_name = &self.players[current_id].name;
+        self.action_log.push(format!("{} 使用了技能 {}屬性彈", player_name, attr_type.to_string()));
+
+        // Keep only the last 50 actions to prevent unbounded growth
+        if self.action_log.len() > 50 {
+            self.action_log = self.action_log.split_off(self.action_log.len() - 50);
+        }
+
         self.turn_phase = TurnPhase::DrawCard;
         Ok(())
     }
@@ -318,6 +329,15 @@ impl Game {
         let validated_targets = self.validate_spell_targets(current_id, &targets, wind_lv5_active)?;
 
         self.execute_spell_effect(current_id, &spell, validated_targets)?;
+
+        // Log the action for all players
+        let player_name = &self.players[current_id].name;
+        self.action_log.push(format!("{} 使用了技能 {}", player_name, spell.name));
+
+        // Keep only the last 50 actions to prevent unbounded growth
+        if self.action_log.len() > 50 {
+            self.action_log = self.action_log.split_off(self.action_log.len() - 50);
+        }
 
         self.turn_phase = TurnPhase::DrawCard;
         Ok(())

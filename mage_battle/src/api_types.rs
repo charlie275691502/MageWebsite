@@ -59,6 +59,7 @@ pub struct GameInfoResponse {
     pub turn_phase: String,
     pub players: Vec<PlayerDto>,
     pub deck_remaining: usize,  // 共享牌庫剩餘卡片數
+    pub action_log: Vec<String>,  // Recent actions
 }
 
 /// 玩家DTO

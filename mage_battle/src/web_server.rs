@@ -151,6 +151,7 @@ async fn create_game(
             turn_phase: format!("{:?}", game.turn_phase),
             players: game.players.iter().map(|p| p.into()).collect(),
             deck_remaining: game.deck.len(),
+            action_log: game.action_log.clone(),
         };
         (StatusCode::OK, Json(ApiResponse::ok(response)))
     } else {
@@ -179,6 +180,7 @@ async fn get_game_info(
             turn_phase: format!("{:?}", game.turn_phase),
             players: game.players.iter().map(|p| p.into()).collect(),
             deck_remaining: game.deck.len(),
+            action_log: game.action_log.clone(),
         };
         (StatusCode::OK, Json(ApiResponse::ok(response)))
     } else {
@@ -618,7 +620,7 @@ async fn play_attribute_bolt(
             Ok(_) => {
                 let result = ActionResultDto {
                     success: true,
-                    message: format!("使用{}屬性彈", attr_type.to_string()),
+                    message: "".to_string(),  // Action is logged in game.action_log
                     events: vec![],
                 };
                 (StatusCode::OK, Json(ApiResponse::ok(result)))
@@ -669,7 +671,7 @@ async fn play_spell_card(
             Ok(_) => {
                 let result = ActionResultDto {
                     success: true,
-                    message: format!("打出法術卡 {}", req.card_id),
+                    message: "".to_string(),  // Action is logged in game.action_log
                     events: vec![],
                 };
                 (StatusCode::OK, Json(ApiResponse::ok(result)))

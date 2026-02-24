@@ -128,6 +128,23 @@ const attributeProficiency: Record<
   ],
 };
 
+// Buff detailed descriptions
+const buffDescriptions: Record<string, string> = {
+  Immune: "免疫：免疫所有傷害和負面效果",
+  Invincible: "無敵：無法被擊敗，生命值不會降至0以下",
+  Paralysis: "麻痹：無法行動，跳過回合",
+  Seal: "封印：無法使用卡片技能",
+  Silent: "沉默：無法使用解放技能",
+  MasterDisable: "大師禁用：無法使用5級或以上技能",
+  DefenseInvalidation: "防禦無效化：護盾無效，直接受到傷害",
+  Confuse: "混亂：攻擊目標變為隨機",
+  HealthDrain: "生命汲取：每回合獲得生命值",
+  HealthDrainTarget: "被生命汲取：每回合失去生命值",
+  Regeneration: "再生：每回合恢復生命值",
+  BurningOut: "燃盡：持續受到火焰傷害",
+  GuardWoodCarving: "守護木雕：提供額外護盾保護",
+};
+
 // Helper function to get card information
 const getCardInfo = (cardId: number) => {
   return cardData.find((card) => card.id === cardId);
@@ -369,6 +386,7 @@ function App() {
         setGameId(info.game_id);
         localStorage.setItem("mage_game_id", info.game_id);
         setGameLog([]); // Clear logs when game starts
+        previousGameInfoRef.current = null; // Clear previous game state
         setScreen("game");
       }
 
@@ -412,6 +430,15 @@ function App() {
         if (hasStateChanged) {
           const newLogs: string[] = [];
 
+          // Process new actions from server action_log
+          const prevActionLog = previousGameInfo.action_log || [];
+          const currentActionLog = info.action_log || [];
+
+          if (currentActionLog.length > prevActionLog.length) {
+            const newActions = currentActionLog.slice(prevActionLog.length);
+            newLogs.push(...newActions);
+          }
+
           // Determine who acted (the player whose turn just finished)
           let actingPlayer: (typeof info.players)[0] | null = null;
 
@@ -449,7 +476,7 @@ function App() {
                         attr.slice(1)) as AttributeType
                     ];
                   newLogs.push(
-                    `${player.name} allocated ${change} point(s) to ${attrName}`
+                    `${player.name} 分配了 ${change} 點到 ${attrName}`
                   );
                 }
               }
@@ -470,21 +497,21 @@ function App() {
               ) {
                 // Damage dealt by another player
                 newLogs.push(
-                  `${actingPlayer.name} dealt ${Math.abs(hpChange)} damage to ${
+                  `${actingPlayer.name} 對 ${
                     player.name
-                  } (${prevPlayer.hp} → ${player.hp} HP)`
+                  } 造成 ${Math.abs(hpChange)} 點傷害 (${prevPlayer.hp} → ${player.hp} HP)`
                 );
               } else if (hpChange < 0) {
                 // Damage from unknown source
                 newLogs.push(
-                  `${player.name} took ${Math.abs(hpChange)} damage (${
+                  `${player.name} 受到 ${Math.abs(hpChange)} 點傷害 (${
                     prevPlayer.hp
                   } → ${player.hp} HP)`
                 );
               } else if (hpChange > 0) {
                 // Healing
                 newLogs.push(
-                  `${player.name} healed ${hpChange} HP (${prevPlayer.hp} → ${player.hp} HP)`
+                  `${player.name} 恢復了 ${hpChange} 點生命 (${prevPlayer.hp} → ${player.hp} HP)`
                 );
               }
             }
@@ -493,10 +520,10 @@ function App() {
             if (prevPlayer.shield !== player.shield) {
               const shieldChange = player.shield - prevPlayer.shield;
               if (shieldChange > 0) {
-                newLogs.push(`${player.name} gained ${shieldChange} shield`);
+                newLogs.push(`${player.name} 獲得了 ${shieldChange} 點護盾`);
               } else if (shieldChange < 0) {
                 newLogs.push(
-                  `${player.name} lost ${Math.abs(shieldChange)} shield`
+                  `${player.name} 失去了 ${Math.abs(shieldChange)} 點護盾`
                 );
               }
             }
@@ -510,7 +537,7 @@ function App() {
           ) {
             const currentPlayer = info.players[info.current_player_index];
             if (info.turn_phase === "AllocateAttribute") {
-              newLogs.push(`=== ${currentPlayer.name}'s turn ===`);
+              newLogs.push(`=== ${currentPlayer.name} 的回合 ===`);
             }
           }
 
@@ -522,7 +549,12 @@ function App() {
           previousGameInfoRef.current = info;
         }
       } else {
-        // First time loading, just set the previous state
+        // First time loading, add existing action_log if any
+        const actionLog = info.action_log || [];
+        if (actionLog.length > 0) {
+          setGameLog((prev) => [...prev, ...actionLog]);
+        }
+        // Set the previous state
         previousGameInfoRef.current = info;
       }
 
@@ -671,6 +703,7 @@ function App() {
       localStorage.setItem("mage_game_id", response.game_id);
 
       setGameLog([]); // Clear logs when starting a new game
+      previousGameInfoRef.current = null; // Clear previous game state
       setScreen("game");
       setError(null);
     } catch (err: any) {
@@ -721,23 +754,19 @@ function App() {
 
   // Game actions
   const addLog = (result: ActionResult) => {
-    const timestamp = new Date().toLocaleTimeString();
-
     // Filter out specific message types
     const shouldSkipMessage = (msg: string) => {
       return (
         msg.includes("Drew card") ||
         msg.includes("抽卡") ||
         msg.includes("allocated") ||
-        msg.includes("分配") ||
-        msg.includes("屬性彈") ||
-        msg.includes("Bolt")
+        msg.includes("分配")
       );
     };
 
     // If there's a message, add it directly (unless filtered)
     if (result.message && !shouldSkipMessage(result.message)) {
-      setGameLog((prev) => [...prev, `[${timestamp}] ${result.message}`]);
+      setGameLog((prev) => [...prev, result.message]);
     }
 
     // Also process events if available
@@ -753,17 +782,7 @@ function App() {
         )
           return;
 
-        let message = event.message;
-
-        // Add player names if player_id is available
-        if (event.player_id !== undefined && gameInfo) {
-          const player = gameInfo.players[event.player_id];
-          if (player) {
-            message = `${player.name}: ${message}`;
-          }
-        }
-
-        newLogs.push(`[${timestamp}] ${message}`);
+        newLogs.push(event.message);
       });
 
       if (newLogs.length > 0) {
@@ -791,7 +810,6 @@ function App() {
   const [cardAction, setCardAction] = useState<
     "top" | "bottom" | "bolt" | null
   >(null);
-  const [selectedTargets, setSelectedTargets] = useState<number[]>([]);
   const [selectedBoltAttr, setSelectedBoltAttr] =
     useState<AttributeType | null>(null);
 
@@ -805,6 +823,12 @@ function App() {
     attr: string;
   } | null>(null);
 
+  // Buff hover state for buff details popup
+  const [hoveredBuff, setHoveredBuff] = useState<{
+    playerId: number;
+    buffIdx: number;
+  } | null>(null);
+
   // Game log state
   const [gameLog, setGameLog] = useState<string[]>([]);
 
@@ -813,7 +837,7 @@ function App() {
     attr: AttributeType,
     targets: number[]
   ) => {
-    if (!gameId) return;
+    if (!gameId || !gameInfo || mySlotId === null) return;
     if (targets.length === 0) {
       setError('必須選擇至少一個目標');
       return;
@@ -824,7 +848,6 @@ function App() {
       addLog(result);
       setSelectedCard(null);
       setCardAction(null);
-      setSelectedTargets([]);
       setSelectedBoltAttr(null);
       await loadGameInfo();
       // Auto-draw card
@@ -841,14 +864,13 @@ function App() {
     side: "Top" | "Bottom",
     targets: number[]
   ) => {
-    if (!gameId) return;
+    if (!gameId || !gameInfo || mySlotId === null) return;
     try {
       setLoading(true);
       const result = await gameApi.playSpellCard(gameId, cardId, side, targets);
       addLog(result);
       setSelectedCard(null);
       setCardAction(null);
-      setSelectedTargets([]);
       setSelectedBoltAttr(null);
       await loadGameInfo();
       // Auto-draw card
@@ -1171,12 +1193,12 @@ function App() {
           </div>
           <div className="game-stats">
             <span>回合 {gameInfo.turn_number}</span>
-            <span>階段: {gameInfo.turn_phase}</span>
+            <span>階段: {gameInfo.turn_phase === "AllocateAttribute" ? "分配屬性" : gameInfo.turn_phase === "PlayCard" ? "出牌" : "抽牌"}</span>
             <span className={isMyTurn ? "current-turn" : ""}>
-              當前: {currentPlayer.name}
+              當前玩家: {currentPlayer.name}
             </span>
-            <span>🗑️ 棄牌: {myPlayer.discard_pile_count}</span>
-            <span>📚 牌庫: {gameInfo.deck_remaining}</span>
+            <span>🗑️ 棄牌: {myPlayer.discard_pile_count}張</span>
+            <span>📚 牌庫: {gameInfo.deck_remaining}張</span>
           </div>
           <div className="header-actions">
             <button onClick={resetAll} className="btn-small btn-warning">
@@ -1208,7 +1230,15 @@ function App() {
           <div className="players-list-panel">
             <h3>玩家列表</h3>
             <div className="players-list">
-              {gameInfo.players.map((player) => {
+              {(() => {
+                // Reorder players: self first, then next players in turn order
+                const orderedPlayers = [];
+                for (let i = 0; i < gameInfo.players.length; i++) {
+                  const playerIndex = (mySlotId + i) % gameInfo.players.length;
+                  orderedPlayers.push(gameInfo.players[playerIndex]);
+                }
+                return orderedPlayers;
+              })().map((player) => {
                 const isCurrentTurn =
                   player.id === gameInfo.current_player_index;
                 const isAllocatingPhase =
@@ -1221,7 +1251,7 @@ function App() {
                   <div
                     key={player.id}
                     className={`player-row ${
-                      player.id === mySlotId ? "my-player-row" : ""
+                      isCurrentTurn ? "current-turn-player" : ""
                     } player-team-${player.team.toLowerCase()}`}
                   >
                     <div className="player-row-header">
@@ -1361,6 +1391,8 @@ function App() {
                           };
 
                           const emoji = buffEmojis[buff.buff_type] || "⭐";
+                          const isHovered = hoveredBuff?.playerId === player.id && hoveredBuff?.buffIdx === idx;
+                          const buffDescription = buffDescriptions[buff.buff_type] || buff.name;
 
                           return (
                             <div
@@ -1368,7 +1400,8 @@ function App() {
                               className={`buff-badge ${
                                 isDebuff ? "debuff" : "buff"
                               }`}
-                              title={`${buff.name}\n${buff.duration}`}
+                              onMouseEnter={() => setHoveredBuff({ playerId: player.id, buffIdx: idx })}
+                              onMouseLeave={() => setHoveredBuff(null)}
                             >
                               <span className="buff-emoji">{emoji}</span>
                               <span className="buff-name">{buff.name}</span>
@@ -1376,6 +1409,18 @@ function App() {
                                 <span className="buff-duration">
                                   {buff.duration}
                                 </span>
+                              )}
+
+                              {/* Buff Details Popup */}
+                              {isHovered && (
+                                <div className="buff-detail-popup">
+                                  <div className="buff-detail-title">{buff.name}</div>
+                                  <div className="buff-detail-description">{buffDescription}</div>
+                                  <div className="buff-detail-duration">持續時間: {buff.duration}</div>
+                                  {buff.data !== null && buff.data !== undefined && (
+                                    <div className="buff-detail-data">數值: {buff.data}</div>
+                                  )}
+                                </div>
                               )}
                             </div>
                           );
@@ -1414,7 +1459,6 @@ function App() {
                           if (canClick) {
                             // Reset action states when choosing a different card
                             setCardAction(null);
-                            setSelectedTargets([]);
                             setSelectedBoltAttr(null);
                             setSelectedCard(cardId);
                           }
@@ -1424,22 +1468,31 @@ function App() {
                       >
                         {cardInfo ? (
                           <>
-                            <div className="card-spell-name">
-                              {cardInfo.top_spell.name}
-                            </div>
-                            <div className="card-cost">
-                              {cardInfo.top_spell.cost}
+                            <div className="card-top-section">
+                              <div className="card-spell-name">
+                                {cardInfo.top_spell.name}
+                              </div>
+                              <div className={`card-cost ${
+                                !checkSpellRequirement(cardInfo.top_spell.cost, myPlayer.attributes)
+                                  ? "requirement-not-met"
+                                  : ""
+                              }`}>
+                                {cardInfo.top_spell.cost}
+                              </div>
                             </div>
                             {cardInfo.bottom_spell && (
-                              <>
-                                <div className="card-divider">---</div>
+                              <div className="card-bottom-section">
                                 <div className="card-spell-name">
                                   {cardInfo.bottom_spell.name}
                                 </div>
-                                <div className="card-cost">
+                                <div className={`card-cost ${
+                                  !checkSpellRequirement(cardInfo.bottom_spell.cost, myPlayer.attributes)
+                                    ? "requirement-not-met"
+                                    : ""
+                                }`}>
                                   {cardInfo.bottom_spell.cost}
                                 </div>
-                              </>
+                              </div>
                             )}
                           </>
                         ) : (
@@ -1680,10 +1733,10 @@ function App() {
                                           title={
                                             attrValue === 0
                                               ? "此屬性等級為0"
-                                              : `使用${attributeNames[attr]}彈 (Lv${attrValue})`
+                                              : `使用${attributeNames[attr]}屬性彈 (Lv${attrValue})`
                                           }
                                         >
-                                          {attributeNames[attr]}
+                                          {attributeNames[attr]}彈
                                           <span className="bolt-level">
                                             Lv{attrValue}
                                           </span>
@@ -1843,7 +1896,7 @@ function App() {
                           return (
                             <div className="target-selection-popup">
                               <h4>
-                                選擇目標 - {attributeNames[selectedBoltAttr]}彈
+                                選擇目標 - {attributeNames[selectedBoltAttr]}屬性彈
                               </h4>
                               <div className="spell-info-compact">
                                 <div>
