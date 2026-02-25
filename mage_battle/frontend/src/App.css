@@ -1743,6 +1743,41 @@
   font-weight: 600;
 }
 
+.shield-tooltip {
+  cursor: help;
+  position: relative;
+}
+
+.shield-tooltip-popup {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  border: 2px solid #4299e1;
+  border-radius: 8px;
+  padding: 0.75rem;
+  min-width: 150px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  white-space: normal;
+  pointer-events: none;
+}
+
+.shield-tooltip-popup strong {
+  display: block;
+  color: #2d3748;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.shield-tooltip-popup p {
+  margin: 0;
+  color: #4a5568;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
 .player-meta-info {
   display: flex;
   align-items: center;
@@ -2481,6 +2516,8 @@
   gap: 0.3rem;
   margin-top: 0.4rem;
   padding: 0.3rem 0;
+  overflow: visible;
+  position: relative;
 }
 
 .buff-badge {
@@ -2495,6 +2532,7 @@
   cursor: help;
   white-space: nowrap;
   position: relative;
+  z-index: 1;
 }
 
 .buff-badge.buff {
@@ -2514,6 +2552,7 @@
 .buff-badge:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 10001;
 }
 
 .buff-emoji {
@@ -2536,10 +2575,9 @@
 
 .buff-detail-popup {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 0.5rem);
   left: 50%;
   transform: translateX(-50%);
-  margin-top: 0.5rem;
   background: white;
   border: 2px solid #e2e8f0;
   border-radius: 8px;
@@ -2547,8 +2585,9 @@
   min-width: 200px;
   max-width: 300px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
+  z-index: 10000;
   white-space: normal;
+  pointer-events: none;
 }
 
 .buff-detail-title {

@@ -153,7 +153,12 @@ impl Game {
             }
         }
 
-        self.turn_phase = TurnPhase::AllocateAttribute;
+        // Check if player has Confuse buff - if so, start with PlayCard phase instead
+        if self.players[current_id].buffs.has(crate::buff::BuffType::Confuse) {
+            self.turn_phase = TurnPhase::PlayCard;
+        } else {
+            self.turn_phase = TurnPhase::AllocateAttribute;
+        }
     }
 
     /// 獲取最遠的存活敵人
@@ -211,7 +216,15 @@ impl Game {
         }
 
         player.attributes.add(attr_type, 1);
-        self.turn_phase = TurnPhase::PlayCard;
+
+        // Check if player has Confuse buff - if so, end turn instead of going to PlayCard
+        let current_id = self.current_player_index;
+        if self.players[current_id].buffs.has(crate::buff::BuffType::Confuse) {
+            self.turn_phase = TurnPhase::TurnEnd;
+            self.handle_turn_end();
+        } else {
+            self.turn_phase = TurnPhase::PlayCard;
+        }
 
         Ok(())
     }
@@ -420,8 +433,14 @@ impl Game {
             self.current_player_mut().draw_card(card_id);
         }
 
-        self.turn_phase = TurnPhase::TurnEnd;
-        self.handle_turn_end();
+        // Check if player has Confuse buff - if so, go to AllocateAttribute phase instead of ending turn
+        let current_id = self.current_player_index;
+        if self.players[current_id].buffs.has(crate::buff::BuffType::Confuse) {
+            self.turn_phase = TurnPhase::AllocateAttribute;
+        } else {
+            self.turn_phase = TurnPhase::TurnEnd;
+            self.handle_turn_end();
+        }
 
         Ok(())
     }

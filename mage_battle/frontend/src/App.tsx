@@ -137,7 +137,7 @@ const buffDescriptions: Record<string, string> = {
   Silent: "沉默：無法使用解放技能",
   MasterDisable: "大師禁用：無法使用5級或以上技能",
   DefenseInvalidation: "防禦無效化：護盾無效，直接受到傷害",
-  Confuse: "混亂：攻擊目標變為隨機",
+  Confuse: "混亂：回合開始時必須先出卡片再分配屬性點",
   HealthDrain: "生命汲取：每回合獲得生命值",
   HealthDrainTarget: "被生命汲取：每回合失去生命值",
   Regeneration: "再生：每回合恢復生命值",
@@ -829,6 +829,12 @@ function App() {
     buffIdx: number;
   } | null>(null);
 
+  // Shield hover state
+  const [hoveredShield, setHoveredShield] = useState<{
+    playerId: number;
+    location: string;
+  } | null>(null);
+
   // Game log state
   const [gameLog, setGameLog] = useState<string[]>([]);
 
@@ -1265,8 +1271,24 @@ function App() {
                         <div className="hp-shield-inline">
                           <span className="hp-text">❤️ {player.hp}</span>
                           {player.shield > 0 && (
-                            <span className="shield-text">
+                            <span
+                              className="shield-text shield-tooltip"
+                              onMouseEnter={() =>
+                                setHoveredShield({
+                                  playerId: player.id,
+                                  location: "player-list",
+                                })
+                              }
+                              onMouseLeave={() => setHoveredShield(null)}
+                            >
                               | 🛡️ {player.shield}
+                              {hoveredShield?.playerId === player.id &&
+                                hoveredShield?.location === "player-list" && (
+                                  <div className="shield-tooltip-popup">
+                                    <strong>護盾</strong>
+                                    <p>可格擋傷害。若單次傷害數值大於等於護盾值，則護盾被破壞，免除剩餘的傷害。</p>
+                                  </div>
+                                )}
                             </span>
                           )}
                         </div>
@@ -1575,7 +1597,25 @@ function App() {
                       ></div>
                     </div>
                     {player.shield > 0 && (
-                      <div className="shield-text">🛡️ {player.shield}</div>
+                      <div
+                        className="shield-text shield-tooltip"
+                        onMouseEnter={() =>
+                          setHoveredShield({
+                            playerId: player.id,
+                            location: "game-board",
+                          })
+                        }
+                        onMouseLeave={() => setHoveredShield(null)}
+                      >
+                        🛡️ {player.shield}
+                        {hoveredShield?.playerId === player.id &&
+                          hoveredShield?.location === "game-board" && (
+                            <div className="shield-tooltip-popup">
+                              <strong>護盾</strong>
+                              <p>可格擋傷害。若單次傷害數值大於等於護盾值，則護盾被破壞，免除剩餘的傷害。</p>
+                            </div>
+                          )}
+                      </div>
                     )}
                   </div>
 
@@ -1846,8 +1886,27 @@ function App() {
                                       </div>
                                       <div className="target-stats">
                                         ❤️ {player.hp}
-                                        {player.shield > 0 &&
-                                          ` | 🛡️ ${player.shield}`}
+                                        {player.shield > 0 && (
+                                          <span
+                                            className="shield-tooltip"
+                                            onMouseEnter={() =>
+                                              setHoveredShield({
+                                                playerId: player.id,
+                                                location: "target-spell",
+                                              })
+                                            }
+                                            onMouseLeave={() => setHoveredShield(null)}
+                                          >
+                                            {` | 🛡️ ${player.shield}`}
+                                            {hoveredShield?.playerId === player.id &&
+                                              hoveredShield?.location === "target-spell" && (
+                                                <div className="shield-tooltip-popup">
+                                                  <strong>護盾</strong>
+                                                  <p>可格擋傷害。若單次傷害數值大於等於護盾值，則護盾被破壞，免除剩餘的傷害。</p>
+                                                </div>
+                                              )}
+                                          </span>
+                                        )}
                                       </div>
                                       {windLv2Applied && (
                                         <div className="debuff-warning">
@@ -1957,8 +2016,27 @@ function App() {
                                       </div>
                                       <div className="target-stats">
                                         ❤️ {player.hp}
-                                        {player.shield > 0 &&
-                                          ` | 🛡️ ${player.shield}`}
+                                        {player.shield > 0 && (
+                                          <span
+                                            className="shield-tooltip"
+                                            onMouseEnter={() =>
+                                              setHoveredShield({
+                                                playerId: player.id,
+                                                location: "target-bolt",
+                                              })
+                                            }
+                                            onMouseLeave={() => setHoveredShield(null)}
+                                          >
+                                            {` | 🛡️ ${player.shield}`}
+                                            {hoveredShield?.playerId === player.id &&
+                                              hoveredShield?.location === "target-bolt" && (
+                                                <div className="shield-tooltip-popup">
+                                                  <strong>護盾</strong>
+                                                  <p>可格擋傷害。若單次傷害數值大於等於護盾值，則護盾被破壞，免除剩餘的傷害。</p>
+                                                </div>
+                                              )}
+                                          </span>
+                                        )}
                                       </div>
                                       {windLv2Applied && (
                                         <div className="debuff-warning">
