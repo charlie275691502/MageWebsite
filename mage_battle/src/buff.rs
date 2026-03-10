@@ -168,6 +168,12 @@ impl BuffList {
 
     /// 添加Buff
     pub fn add(&mut self, buff: Buff) {
+        // 檢查是否免疫負面效果
+        if buff.buff_type.is_debuff() && self.is_immune_to_debuff() {
+            // 免疫狀態下，不添加負面效果
+            return;
+        }
+
         // 檢查是否已經有相同類型的buff
         if let Some(existing) = self.buffs.iter_mut().find(|b| b.buff_type == buff.buff_type) {
             // 更新持續時間（取較長的）
@@ -371,13 +377,13 @@ mod tests {
     fn test_buff_list_tick_all() {
         let mut buffs = BuffList::new();
 
-        buffs.add(Buff::new(BuffType::Immune, BuffDuration::Turns(1)));
+        buffs.add(Buff::new(BuffType::Silent, BuffDuration::Turns(1)));
         buffs.add(Buff::new(BuffType::Paralysis, BuffDuration::Turns(2)));
 
         buffs.tick_all();
 
         // Immune should expire
-        assert!(!buffs.has(BuffType::Immune));
+        assert!(!buffs.has(BuffType::Silent));
         // Paralysis should still be there
         assert!(buffs.has(BuffType::Paralysis));
     }
