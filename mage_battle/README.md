@@ -1,289 +1,92 @@
 # MageBattle 法師對戰 🧙‍♂️⚔️
 
-一個基於Rust開發的4人回合制卡牌對戰遊戲，支持CLI和Web模式。
+A 4-player turn-based card battle game built with Rust and React.
 
-## ✨ 遊戲特色
+## 🚀 Quick Start
 
-- 🎮 **4人2v2團隊對戰**
-  - 玩家分成兩隊，坐在方桌對側
-  - 需要與隊友合作擊敗對手
+See **[Quick Start Guide](documents/setup/quick-start.md)** to get started in 5 minutes!
 
-- ⚔️ **完整的屬性系統**
-  - 4個主要屬性：火、木、雷、水
-  - 2個輔助屬性：風、毒
-  - 每個屬性有獨特的精通效果
+## 📚 Documentation
 
-- 📋 **豐富的卡牌系統**
-  - 60張公牌，每張卡片有A/B兩面
-  - 多樣化的法術效果
-  - 屬性彈基礎攻擊
+All documentation has been organized in the `documents/` folder:
 
-- 🌟 **角色解放系統**
-  - 4個初始角色可選
-  - 達成屬性需求後可解放
-  - 解放後獲得強大能力和永久+1手牌
+### 🎯 Getting Started
+- **[Quick Start Guide](documents/setup/quick-start.md)** - Get up and running in 5 minutes
+- **[Installation Guide](documents/setup/installation.md)** - Detailed setup instructions
 
-- 💀 **復活機制**
-  - 玩家死亡後2回合可復活
-  - 復活時恢復50%血量
+### 🎮 Gameplay
+- **[Game Rules](documents/gameplay/game-rules.md)** - Complete game rules and mechanics
+- **[Combat System](documents/gameplay/combat-system.md)** - Damage calculation and targeting
+- **[Characters](documents/gameplay/characters.md)** - Character types and liberation skills
+- **[Buffs & Debuffs](documents/gameplay/buffs-debuffs.md)** - Status effects guide
 
-## 🚀 快速開始
+### 💻 Technical
+- **[Architecture](documents/technical/architecture.md)** - System design and technology stack
+- **[API Reference](documents/technical/api-reference.md)** - REST API documentation
+- **[Proficiency System](documents/technical/proficiency-system.md)** - Implementation details
+- **[Testing Guide](documents/technical/testing.md)** - How to run and write tests
 
-### 安裝運行
+### 🛠️ Development
+- **[Project Status](documents/development/project-status.md)** - Current features and roadmap
+- **[Contributing](documents/development/contributing.md)** - How to contribute
+
+**Full Documentation**: See [documents/README.md](documents/README.md)
+
+## ✨ Features
+
+- 🎮 4-player 2v2 team battles
+- ⚔️ 6 attribute types with unique proficiency effects
+- 📋 60 spell cards with dual-sided effects
+- 🌟 Character liberation skills
+- 💀 Death and revival mechanics
+- 🌐 Web-based multiplayer
+
+## 🏗️ Technology Stack
+
+- **Backend**: Rust + Axum
+- **Frontend**: React + TypeScript
+- **Architecture**: REST API with polling-based updates
+
+## 📦 Project Structure
+
+```
+mage_battle/
+├── documents/          # 📚 All documentation
+│   ├── setup/         # Installation guides
+│   ├── gameplay/      # Game rules
+│   ├── technical/     # Technical docs
+│   └── development/   # Contributing
+├── src/               # Rust backend source
+├── tests/             # Rust tests
+├── frontend/          # React frontend
+├── spells.json        # Spell card data
+└── cards.json         # Card metadata
+```
+
+## 🎮 Quick Commands
 
 ```bash
-cd mage_battle
+# Start backend server
+./start_server.sh       # Mac/Linux
+start_server.bat        # Windows
 
-# 編譯項目
+# Start frontend (in new terminal)
+./start_frontend.sh     # Mac/Linux
+start_frontend.bat      # Windows
+
+# Run tests
+cargo test
+
+# Build release
 cargo build --release
-
-# 運行CLI版本
-cargo run --release
-
-# 直接啟動Web服務器
-cargo run --release -- --web
 ```
 
-### Web版本（推薦）
+## 📝 License
 
-**終端 - 後端：**
-```bash
-cd mage_battle
-cargo run --release -- --web
-```
-
-瀏覽器訪問 http://localhost:3000
-
-## 🎮 遊戲規則
-
-### 基本設定
-- **玩家數量**: 4人（2v2）
-- **初始血量**: 50
-- **初始手牌**: 4張
-- **屬性上限**: 每個屬性最高5點
-
-### 回合結構
-每個玩家回合依序執行：
-1. **分配屬性點** - 獲得並分配1個屬性點（上限5）
-2. **打出卡片** - 使用法術卡、屬性彈或解放技能
-3. **抽卡** - 抽取1張卡片
-
-### 勝利條件
-- 擊敗對方隊伍的兩位玩家
-- 如果同隊所有角色同時死亡則宣布對手勝利
-
-### 屬性效果
-
-#### 火 🔥
-- **Lv3**: 所有屬性彈+1傷害
-- **Lv5**: 回合開始時對所有敵人造成1點傷害
-
-#### 木 🌳
-- **Lv3**: 減少1點生命並獲得1點護盾
-- **Lv5**: 自己與隊友受到的卡片傷害-1
-
-#### 雷 ⚡
-- **Lv3**: 雷屬性卡片傷害+1
-- **Lv5**: 雷屬性卡片傷害+2（合計+3）
-
-#### 水 💧
-- **Lv3**: 使用水屬卡片時，回復自身1點生命
-- **Lv5**: 使用水屬卡片時，回復自己與隊友1點生命
-
-#### 風 🌪️
-- **Lv2**: 風屬性卡片攻擊的人這圈不能回復生命或獲得護盾
-- **Lv5**: 風屬性卡片可自由選擇對象
-
-#### 毒 ☠️
-- **Lv2**: 被毒屬性卡片攻擊的人下回合先出卡片再配屬性點
-- **Lv5**: 被毒屬性卡片攻擊的人下回合只能出屬性彈
-
-### 角色介紹
-
-#### 火毒法師 (Zeuberer_Flame_1)
-- **初始屬性**: 火2 毒1
-- **解放條件**: 火4 毒2
-- **解放技能「燃燒殆盡」**: 火屬性攻擊傷害+5，回合開始時移除1點火屬性點
-
-#### 木風法師 (Zeuberer_Wood_1)
-- **初始屬性**: 木2 風1
-- **解放條件**: 木4 風2
-- **解放技能「守護木雕」**: 所有友軍受到傷害-4，受到3次攻擊後消失
-
-#### 雷毒法師 (Zeuberer_Spark_1)
-- **初始屬性**: 雷2 毒1
-- **解放條件**: 雷4 毒2
-- **解放技能「鏈鎖電擊」**: 對所有其他玩家造成10點傷害
-
-#### 水風法師 (Zeuberer_Water_1)
-- **初始屬性**: 水2 風1
-- **解放條件**: 水4 風2
-- **解放技能「颶風之眼」**: 回合開始時回復7點生命，持續4回合
-
-### Buff/Debuff系統
-
-**正面效果**:
-- 免疫 - 免疫傷害與負面效果
-- 化身 - 免疫傷害與負面效果，持續到下一位玩家
-- 再生 - 回合開始時回復7點生命
-- 守護木雕 - 受到傷害-4，受到3次攻擊後消失
-
-**負面效果**:
-- 癱瘓 - 無法行動
-- 封印 - 無法使用解放技能
-- 沈默 - 無法使用屬性彈以外的法術
-- 元素剝離 - 使用法術時不會帶有屬性精通效果
-- 防禦崩解 - 無法回復生命或獲得護盾
-- 混亂 - 回合開始時必須先出卡片再配屬性點
-
-## 📚 技術棧
-
-### 後端
-- **Rust 2021 Edition**
-- **Axum 0.6** - Web框架
-- **Tokio 1.28** - 異步運行時
-- **Tower-HTTP 0.4** - CORS中間件
-- **DashMap 5.5** - 並發狀態管理
-- **Serde** - 序列化/反序列化
-
-### 前端（規劃中）
-- React 18 + TypeScript
-- Axios - HTTP客戶端
-- 現代化響應式UI
-
-## 📋 API文檔
-
-### 遊戲管理
-
-#### 創建新遊戲
-```
-POST /api/game/new
-Content-Type: application/json
-
-{
-  "player_names": ["玩家1", "玩家2", "玩家3", "玩家4"],
-  "characters": ["FlamePoison", "WoodWind", "ThunderPoison", "WaterWind"]
-}
-```
-
-#### 獲取遊戲信息
-```
-GET /api/game/:game_id
-```
-
-### 遊戲動作
-
-#### 分配屬性點
-```
-POST /api/game/:game_id/allocate
-Content-Type: application/json
-
-{
-  "attribute": "Fire"
-}
-```
-
-#### 使用屬性彈
-```
-POST /api/game/:game_id/play_bolt
-Content-Type: application/json
-
-{
-  "attribute": "Fire",
-  "target_id": 3
-}
-```
-
-#### 打出法術卡
-```
-POST /api/game/:game_id/play_card
-Content-Type: application/json
-
-{
-  "card_id": 1,
-  "targets": [3]
-}
-```
-
-#### 使用解放技能
-```
-POST /api/game/:game_id/liberate
-Content-Type: application/json
-
-{
-  "targets": []
-}
-```
-
-#### 抽卡
-```
-POST /api/game/:game_id/draw
-```
-
-### 查詢
-
-#### 獲取所有玩家信息
-```
-GET /api/game/:game_id/players
-```
-
-#### 獲取單個玩家信息
-```
-GET /api/game/:game_id/players/:player_id
-```
-
-## 🗂️ 項目結構
-
-```
-src/
-├── main.rs           # 入口點和模式選擇
-├── attribute.rs      # 屬性系統（6種屬性，精通效果）
-├── buff.rs           # Buff/Debuff系統（13種狀態）
-├── card.rs           # 卡牌系統（雙面卡片）
-├── character.rs      # 角色系統（4個角色，解放技能）
-├── effect.rs         # 效果系統（40+種效果類型）
-├── player.rs         # 玩家狀態（血量、手牌、屬性、Buff）
-├── game.rs           # 遊戲邏輯和回合管理
-├── api_types.rs      # API DTO定義
-└── web_server.rs     # Axum REST API服務器
-```
-
-## 🔧 開發狀態
-
-### ✅ 已完成
-- [x] 核心遊戲架構
-- [x] 屬性系統
-- [x] Buff/Debuff系統
-- [x] 角色和解放技能
-- [x] 玩家狀態管理
-- [x] 基礎遊戲循環
-- [x] Web API服務器
-- [x] 屬性彈攻擊
-- [x] 死亡和復活機制
-
-### 🚧 進行中
-- [ ] 完整的60張卡片數據加載
-- [ ] 法術效果執行邏輯
-- [ ] React前端界面
-
-### 📝 計劃中
-- [ ] 完整的互動式效果（移動屬性點、檢視手牌等）
-- [ ] AI對手
-- [ ] 遊戲回放
-- [ ] 統計和排行榜
-- [ ] 更多角色和卡片
-
-## 🎯 下一步
-
-1. **加載卡片數據** - 從Excel文件解析60張卡片的完整數據
-2. **實現效果系統** - 完成所有40+種效果的執行邏輯
-3. **創建前端** - 開發React界面展示遊戲狀態
-4. **測試平衡性** - 調整數值以保證遊戲平衡
-
-## 📄 許可證
-
-本項目為學習示例項目。
+This project is an educational/learning project.
 
 ---
+
+**Need help?** Check the [documentation](documents/README.md) or [troubleshooting guide](documents/setup/quick-start.md#troubleshooting).
 
 Built with ❤️ using Rust & React
