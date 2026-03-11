@@ -9,6 +9,7 @@ import {
 } from "./api/lobbyApi";
 import cardsDataRaw from "./cards.json";
 import spellsDataRaw from "./spells.json";
+import Guide from "./components/Guide";
 import "./App.css";
 
 type AttributeType = "Fire" | "Wood" | "Thunder" | "Water" | "Wind" | "Poison";
@@ -838,6 +839,9 @@ function App() {
   // Game log state
   const [gameLog, setGameLog] = useState<string[]>([]);
 
+  // Guide state
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+
   const playBoltWithCard = async (
     cardId: number,
     attr: AttributeType,
@@ -1207,11 +1211,17 @@ function App() {
             <span>📚 牌庫: {gameInfo.deck_remaining}張</span>
           </div>
           <div className="header-actions">
+            <button onClick={() => setIsGuideOpen(true)} className="btn-small btn-guide">
+              📖 指南
+            </button>
             <button onClick={resetAll} className="btn-small btn-warning">
               重置
             </button>
           </div>
         </header>
+
+        {/* Guide Modal */}
+        <Guide isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
 
         {error && <div className="error">{error}</div>}
 

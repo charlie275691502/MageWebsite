@@ -11,8 +11,6 @@ async fn main() {
     // 如果有 --web 參數，直接啟動Web服務器
     if args.len() > 1 && (args[1] == "--web" || args[1] == "-w") {
         println!("🚀 啟動 MageBattle Web 服務器...");
-        println!("📍 服務器地址: http://localhost:3000");
-        println!("⛔ 按 Ctrl+C 停止服務器\n");
 
         web_server::start_server().await;
         return;

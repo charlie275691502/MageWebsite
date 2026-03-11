@@ -6,7 +6,7 @@ use axum::{
     Json, Router,
 };
 use dashmap::DashMap;
-use std::sync::Arc;
+use std::{env, sync::Arc};
 use tower_http::cors::{Any, CorsLayer};
 use uuid::Uuid;
 
@@ -112,11 +112,12 @@ pub fn create_router() -> Router {
 pub async fn start_server() {
     let app = create_router();
 
-    let addr = "0.0.0.0:3000".parse().unwrap();
+    let port = env::var("PORT").unwrap_or("3000".to_string());
+    let addr = format!("0.0.0.0:{}", port);
 
-    println!("🚀 Server running on http://localhost:3000");
+    println!("🚀 Server running on {}", addr);
 
-    axum::Server::bind(&addr)
+    axum::Server::bind(&addr.parse().unwrap())
         .serve(app.into_make_service())
         .await
         .unwrap();
