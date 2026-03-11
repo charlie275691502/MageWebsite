@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/MageWebsite/static/css/main.9b3ff74c.css",
+    "main.js": "/MageWebsite/static/js/main.a9cecefc.js",
+    "index.html": "/MageWebsite/index.html",
+    "main.9b3ff74c.css.map": "/MageWebsite/static/css/main.9b3ff74c.css.map",
+    "main.a9cecefc.js.map": "/MageWebsite/static/js/main.a9cecefc.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.9b3ff74c.css",
+    "static/js/main.a9cecefc.js"
+  ]
+}
