@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/MageWebsite/static/css/main.3260c45d.css",
-    "main.js": "/MageWebsite/static/js/main.81b3f4c0.js",
+    "main.js": "/MageWebsite/static/js/main.94dff645.js",
     "index.html": "/MageWebsite/index.html",
     "main.3260c45d.css.map": "/MageWebsite/static/css/main.3260c45d.css.map",
-    "main.81b3f4c0.js.map": "/MageWebsite/static/js/main.81b3f4c0.js.map"
+    "main.94dff645.js.map": "/MageWebsite/static/js/main.94dff645.js.map"
   },
   "entrypoints": [
     "static/css/main.3260c45d.css",
-    "static/js/main.81b3f4c0.js"
+    "static/js/main.94dff645.js"
   ]
 }
