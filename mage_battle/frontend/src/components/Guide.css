@@ -11,7 +11,7 @@
   align-items: center;
   z-index: 9999;
   padding: 20px;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 /* Guide Modal Container */
@@ -21,7 +21,9 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   max-width: 900px;
   width: 100%;
-  max-height: 90vh;
+  height: 85vh;
+  max-height: 800px;
+  min-height: 600px;
   display: flex;
   flex-direction: column;
   border: 2px solid #3a3a5c;
@@ -70,12 +72,15 @@
 /* Guide Tabs */
 .guide-tabs {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   padding: 15px 20px;
   background: rgba(0, 0, 0, 0.2);
   border-bottom: 2px solid #3a3a5c;
   overflow-x: auto;
+  overflow-y: hidden;
+  max-height: 60px;
+  min-height: 60px;
 }
 
 .guide-tab {
@@ -85,6 +90,10 @@
   border-radius: 8px;
   color: #aaa;
   font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
   white-space: nowrap;
@@ -239,7 +248,9 @@
 @media (max-width: 768px) {
   .guide-modal {
     max-width: 100%;
-    max-height: 95vh;
+    height: 90vh;
+    max-height: 90vh;
+    min-height: 500px;
     margin: 10px;
   }
 

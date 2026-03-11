@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./Guide.css";
 
 interface GuideProps {
@@ -10,6 +10,19 @@ type TabKey = "structure" | "stats" | "attributes" | "turns" | "cards" | "target
 
 const Guide: React.FC<GuideProps> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<TabKey>("structure");
+
+  // Prevent background scrolling when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

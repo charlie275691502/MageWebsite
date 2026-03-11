@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = process.env.REACT_APP_API_URL + 'api';
 
 export interface RoomDto {
   room_code: string;
