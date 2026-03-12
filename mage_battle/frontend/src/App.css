@@ -4,8 +4,13 @@
   box-sizing: border-box;
 }
 
+body {
+  overflow-x: auto;
+}
+
 .App {
   min-height: 100vh;
+  min-width: 1500px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #333;
 }
@@ -1661,6 +1666,7 @@
   grid-template-columns: 350px 1fr 300px;
   gap: 1.5rem;
   max-width: 1800px;
+  min-width: 1400px;
   margin: 0 auto;
   padding: 2rem;
 }
@@ -1672,7 +1678,7 @@
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  max-height: calc(100vh - 150px);
+  height: fit-content;
   overflow: visible;
 }
 
@@ -1687,7 +1693,6 @@
   flex-direction: column;
   gap: 1rem;
   overflow: visible;
-  padding-bottom: 8rem;
 }
 
 .player-row {
@@ -2137,6 +2142,13 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  cursor: pointer;
+}
+
+/* Hover feedback for all cards */
+.hand-card-clickable:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.5);
 }
 
 .hand-card-clickable.can-select {
@@ -2145,23 +2157,13 @@
 
 .hand-card-clickable.can-select:hover {
   transform: translateY(-6px);
-  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.5);
+  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.6);
 }
 
 .hand-card-clickable.selected {
   transform: translateY(-6px);
-  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.5);
-}
-
-.hand-card-clickable.disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.hand-card-clickable.disabled:hover {
-  opacity: 1;
-  transform: translateY(-6px);
-  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.5);
+  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.7);
+  /* border: 2px solid #667eea; */
 }
 
 .card-top-section {
@@ -2751,22 +2753,8 @@
   transform: none;
 }
 
-/* Responsive */
-@media (max-width: 1200px) {
-  .game-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .players-list-panel,
-  .cards-panel,
-  .game-log-panel {
-    max-height: none;
-  }
-
-  .hand-cards-grid {
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  }
-}
+/* Responsive - Disabled since we have min-width: 1400px on game-layout */
+/* Game layout maintains 3-column structure at all times */
 
 @media (max-width: 768px) {
   .test-scenarios-grid {

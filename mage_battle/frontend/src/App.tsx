@@ -1580,21 +1580,18 @@ function App() {
                 {myPlayer.hand.length > 0 ? (
                   myPlayer.hand.map((cardId) => {
                     const cardInfo = getCardInfo(cardId);
-                    const canClick =
-                      isMyTurn && gameInfo.turn_phase === "PlayCard";
+                    const canPlayCard = gameInfo.turn_phase === "PlayCard" && isMyTurn && myPlayer.can_act;
                     return (
                       <div
                         key={cardId}
                         className={`hand-card-clickable ${
-                          canClick ? "can-select" : "disabled"
+                          canPlayCard ? "can-select" : ""
                         } ${selectedCard === cardId ? "selected" : ""}`}
                         onClick={() => {
-                          if (canClick) {
-                            // Reset action states when choosing a different card
-                            setCardAction(null);
-                            setSelectedBoltAttr(null);
-                            setSelectedCard(cardId);
-                          }
+                          // Reset action states when choosing a different card
+                          setCardAction(null);
+                          setSelectedBoltAttr(null);
+                          setSelectedCard(cardId);
                         }}
                         onMouseEnter={() => handleCardMouseEnter(cardId)}
                         onMouseLeave={handleCardMouseLeave}
@@ -1771,11 +1768,8 @@ function App() {
               ))}
             </div>
 
-            {/* Card Actions (only for PlayCard phase) */}
-            {isMyTurn &&
-              myPlayer.can_act &&
-              gameInfo.turn_phase === "PlayCard" && (
-                <div className="card-actions-section">
+            {/* Card Actions */}
+            <div className="card-actions-section">
                   {selectedCard ? (
                     <div>
                       <h4>已選擇卡片</h4>
@@ -1801,22 +1795,24 @@ function App() {
                                     onClick={() => setCardAction("top")}
                                     disabled={
                                       loading ||
+                                      gameInfo.turn_phase !== "PlayCard" ||
+                                      !isMyTurn ||
+                                      !myPlayer.can_act ||
                                       !checkSpellRequirement(
                                         cardInfo.top_spell.cost,
                                         myPlayer.attributes
                                       )
                                     }
                                     className="btn-spell-confirm"
-                                    title={
-                                      !checkSpellRequirement(
-                                        cardInfo.top_spell.cost,
-                                        myPlayer.attributes
-                                      )
-                                        ? "屬性等級不足"
-                                        : ""
-                                    }
                                   >
-                                    確認
+                                    {gameInfo.turn_phase !== "PlayCard" || !isMyTurn || !myPlayer.can_act
+                                        ? "現在無法出牌"
+                                        : !checkSpellRequirement(
+                                            cardInfo.top_spell.cost,
+                                            myPlayer.attributes
+                                          )
+                                        ? "屬性等級不足"
+                                        : "確認"}
                                   </button>
                                 </div>
 
@@ -1834,22 +1830,24 @@ function App() {
                                       onClick={() => setCardAction("bottom")}
                                       disabled={
                                         loading ||
+                                        gameInfo.turn_phase !== "PlayCard" ||
+                                        !isMyTurn ||
+                                        !myPlayer.can_act ||
                                         !checkSpellRequirement(
                                           cardInfo.bottom_spell.cost,
                                           myPlayer.attributes
                                         )
                                       }
                                       className="btn-spell-confirm"
-                                      title={
-                                        !checkSpellRequirement(
-                                          cardInfo.bottom_spell.cost,
-                                          myPlayer.attributes
-                                        )
-                                          ? "屬性等級不足"
-                                          : ""
-                                      }
                                     >
-                                      確認
+                                    {gameInfo.turn_phase !== "PlayCard"  || !isMyTurn || !myPlayer.can_act
+                                        ? "現在無法出牌"
+                                        : !checkSpellRequirement(
+                                            cardInfo.bottom_spell.cost,
+                                            myPlayer.attributes
+                                          )
+                                        ? "屬性等級不足"
+                                        : "確認"}
                                     </button>
                                   </div>
                                 )}
@@ -1879,10 +1877,12 @@ function App() {
                                             setSelectedBoltAttr(attr);
                                             setCardAction("bolt");
                                           }}
-                                          disabled={loading || attrValue === 0}
+                                          disabled={loading || gameInfo.turn_phase !== "PlayCard" || !isMyTurn || !myPlayer.can_act || attrValue === 0}
                                           className="btn-bolt"
                                           title={
-                                            attrValue === 0
+                                            gameInfo.turn_phase !== "PlayCard"  || !isMyTurn || !myPlayer.can_act
+                                              ? "現在無法出牌"
+                                              : attrValue === 0
                                               ? "此屬性等級為0"
                                               : `使用${attributeNames[attr]}屬性彈 (Lv${attrValue})`
                                           }
@@ -1977,10 +1977,10 @@ function App() {
                                     <button
                                       key={player.id}
                                       className={`target-button team-${player.team.toLowerCase()} ${
-                                        isValidTarget ? "valid" : "disabled"
+                                        isValidTarget && gameInfo.turn_phase === "PlayCard" && isMyTurn && myPlayer.can_act ? "valid" : "disabled"
                                       }`}
                                       onClick={() => {
-                                        if (isValidTarget && !loading) {
+                                        if (isValidTarget && !loading && gameInfo.turn_phase === "PlayCard" && isMyTurn && myPlayer.can_act) {
                                           playSpell(
                                             selectedCard,
                                             cardAction === "top"
@@ -1990,7 +1990,7 @@ function App() {
                                           );
                                         }
                                       }}
-                                      disabled={!isValidTarget || loading}
+                                      disabled={!isValidTarget || loading || gameInfo.turn_phase !== "PlayCard" || !isMyTurn || !myPlayer.can_act}
                                     >
                                       <div className="target-name">
                                         {player.name}
@@ -2109,10 +2109,10 @@ function App() {
                                     <button
                                       key={player.id}
                                       className={`target-button team-${player.team.toLowerCase()} ${
-                                        isValidTarget ? "valid" : "disabled"
+                                        isValidTarget && gameInfo.turn_phase === "PlayCard" && isMyTurn && myPlayer.can_act ? "valid" : "disabled"
                                       }`}
                                       onClick={() => {
-                                        if (isValidTarget && !loading) {
+                                        if (isValidTarget && !loading && gameInfo.turn_phase === "PlayCard" && isMyTurn && myPlayer.can_act) {
                                           playBoltWithCard(
                                             selectedCard,
                                             selectedBoltAttr,
@@ -2120,7 +2120,7 @@ function App() {
                                           );
                                         }
                                       }}
-                                      disabled={!isValidTarget || loading}
+                                      disabled={!isValidTarget || loading || gameInfo.turn_phase !== "PlayCard" || !isMyTurn || !myPlayer.can_act}
                                     >
                                       <div className="target-name">
                                         {player.name}
@@ -2167,7 +2167,6 @@ function App() {
                     </div>
                   ) : null}
                 </div>
-              )}
 
             {/* Liberation Section */}
             {myPlayer.character.is_liberated && myPlayer.can_liberate && (
