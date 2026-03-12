@@ -10,7 +10,9 @@ import {
 import { testApi, TestScenarioInfo } from "./api/testApi";
 import cardsDataRaw from "./cards.json";
 import spellsDataRaw from "./spells.json";
+import charactersDataRaw from "./characters.json";
 import Guide from "./components/Guide";
+import VolumeControl from "./components/VolumeControl";
 import "./App.css";
 
 type AttributeType = "Fire" | "Wood" | "Thunder" | "Water" | "Wind" | "Poison";
@@ -99,6 +101,23 @@ const characterTypes = [
   { id: "WaterWind", name: "水風法師" },
 ];
 
+// Character data from JSON
+interface CharacterData {
+  id: string;
+  name: string;
+  avatar: string;
+  fullImage: string;
+  primaryAttributes: string[];
+  description: string;
+  skills: Array<{
+    name: string;
+    type: string;
+    description: string;
+  }>;
+}
+
+const charactersData: CharacterData[] = (charactersDataRaw as any).characters;
+
 // Attribute proficiency info
 const attributeProficiency: Record<
   string,
@@ -132,19 +151,19 @@ const attributeProficiency: Record<
 
 // Buff detailed descriptions
 const buffDescriptions: Record<string, string> = {
-  Immune: "免疫：免疫所有傷害和負面效果",
-  Invincible: "無敵：無法被擊敗，生命值不會降至0以下",
-  Paralysis: "麻痹：無法行動，跳過回合",
-  Seal: "封印：無法使用卡片技能",
-  Silent: "沉默：無法使用解放技能",
-  MasterDisable: "大師禁用：無法使用5級或以上技能",
-  DefenseInvalidation: "防禦無效化：護盾無效，直接受到傷害",
-  Confuse: "混亂：回合開始時必須先出卡片再分配屬性點",
-  HealthDrain: "生命汲取：每回合獲得生命值",
-  HealthDrainTarget: "被生命汲取：每回合失去生命值",
-  Regeneration: "再生：每回合恢復生命值",
-  BurningOut: "燃盡：持續受到火焰傷害",
-  GuardWoodCarving: "守護木雕：提供額外護盾保護",
+  Immune: "免疫所有傷害和負面效果",
+  Invincible: "免疫傷害與負面效果，持續直到下一位玩家完成行動",
+  Paralysis: "無法行動",
+  Seal: "無法使用解放技能",
+  Silent: "無法使用屬性彈以外的法術",
+  MasterDisable: "使用法術時不會帶有屬性精通效果",
+  DefenseInvalidation: "無法回復生命或獲得護盾",
+  Confuse: "回合開始時必須先出卡片再配屬性點",
+  HealthDrain: "回合開始時對指定對象造成1點傷害並回復自身1點生命",
+  HealthDrainTarget: "此目標被生命汲取，每回合失去1點生命",
+  Regeneration: "回合開始時回復7點生命",
+  BurningOut: "火屬性攻擊傷害+5，回合開始時移除1點火屬性點",
+  GuardWoodCarving: "受到傷害-4，此效果在受到3次攻擊後會消失",
 };
 
 // Helper function to get card information
@@ -887,9 +906,74 @@ function App() {
   // Guide state
   const [isGuideOpen, setIsGuideOpen] = useState(false);
 
+  // Volume control state
+  const [isVolumeControlOpen, setIsVolumeControlOpen] = useState(false);
+  const [bgVolume, setBgVolume] = useState(0.3); // Default 30%
+  const [sfxVolume, setSfxVolume] = useState(0.5); // Default 50%
+
+  // Background music ref
+  const musicRef = useRef<HTMLAudioElement>(null);
+  const [musicStarted, setMusicStarted] = useState(false);
+
   // Test mode state
   const [testScenarios, setTestScenarios] = useState<TestScenarioInfo[]>([]);
   const [loadingTestScenarios, setLoadingTestScenarios] = useState(false);
+
+  // Character selection preview state
+  const [previewCharacter, setPreviewCharacter] = useState<CharacterData | null>(null);
+
+  // Set first character as default preview when entering waiting room
+  useEffect(() => {
+    if (screen === "waiting_room" && !previewCharacter) {
+      setPreviewCharacter(charactersData[0]);
+    }
+  }, [screen, previewCharacter]);
+
+  // Start background music once on mount
+  useEffect(() => {
+    const music = musicRef.current;
+    if (music && !musicStarted) {
+      music.volume = bgVolume;
+      music.play()
+        .then(() => {
+          setMusicStarted(true);
+        })
+        .catch(() => {
+          // Autoplay blocked - music will start on first user interaction
+          console.log("Autoplay blocked - click anywhere to start music");
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - run once on mount
+
+  // Update volume when bgVolume changes (without restarting music)
+  useEffect(() => {
+    const music = musicRef.current;
+    if (music) {
+      music.volume = bgVolume;
+    }
+  }, [bgVolume]);
+
+  // Global click handler to start music on user interaction
+  useEffect(() => {
+    const handleFirstClick = () => {
+      const music = musicRef.current;
+      if (music && !musicStarted) {
+        music.volume = bgVolume;
+        music.play()
+          .then(() => {
+            setMusicStarted(true);
+            document.removeEventListener('click', handleFirstClick);
+          })
+          .catch(err => console.log("Music play error:", err));
+      }
+    };
+
+    if (!musicStarted) {
+      document.addEventListener('click', handleFirstClick);
+      return () => document.removeEventListener('click', handleFirstClick);
+    }
+  }, [musicStarted, bgVolume]);
 
   // Check if running in local environment
   const isLocalEnvironment = () => {
@@ -994,8 +1078,13 @@ function App() {
   // ==================== LOBBY SCREEN ====================
   if (screen === "lobby") {
     return (
-      <div className="App">
-        <div className="welcome">
+      <>
+        {/* Background Music Audio Element */}
+        <audio ref={musicRef} loop preload="auto">
+          <source src={`${process.env.PUBLIC_URL}/music/lobby.mp3`} type="audio/mpeg" />
+        </audio>
+        <div className="App">
+          <div className="welcome">
           {error && <div className="error">{error}</div>}
           <h1>🧙‍♂️ MageBattle 法師對戰 ⚔️</h1>
           <p>4人2v2團隊對戰卡牌遊戲</p>
@@ -1047,12 +1136,20 @@ function App() {
           <div className="instructions">
             <div className="instructions-header">
               <h3>📖 遊戲說明</h3>
-              <button
-                onClick={() => setIsGuideOpen(true)}
-                className="btn-guide-inline"
-              >
-                查看完整指南
-              </button>
+              <div className="instructions-buttons">
+                <button
+                  onClick={() => setIsGuideOpen(true)}
+                  className="btn-guide-inline"
+                >
+                  查看完整指南
+                </button>
+                <button
+                  onClick={() => setIsVolumeControlOpen(true)}
+                  className="btn-guide-inline"
+                >
+                  🔊 音量設定
+                </button>
+              </div>
             </div>
             <ul>
               <li>創建房間或使用代碼加入房間</li>
@@ -1065,6 +1162,16 @@ function App() {
 
           {/* Guide Modal */}
           <Guide isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
+
+          {/* Volume Control Modal */}
+          <VolumeControl
+            isOpen={isVolumeControlOpen}
+            onClose={() => setIsVolumeControlOpen(false)}
+            bgVolume={bgVolume}
+            sfxVolume={sfxVolume}
+            onBgVolumeChange={setBgVolume}
+            onSfxVolumeChange={setSfxVolume}
+          />
 
           {/* Test Scenarios Section - Only show in local environment */}
           {isLocalEnvironment() && (
@@ -1102,6 +1209,7 @@ function App() {
           )}
         </div>
       </div>
+      </>
     );
   }
 
@@ -1123,7 +1231,12 @@ function App() {
     const allSameTeam = teams.size === 1;
 
     return (
-      <div className="App">
+      <>
+        {/* Background Music Audio Element */}
+        <audio ref={musicRef} loop preload="auto">
+          <source src={`${process.env.PUBLIC_URL}/music/lobby.mp3`} type="audio/mpeg" />
+        </audio>
+        <div className="App">
         <div className="waiting-room">
           <div className="waiting-room-header">
             <h1>🧙‍♂️ 等待室</h1>
@@ -1137,24 +1250,94 @@ function App() {
           {/* Character Selection Area */}
           <div className="character-selection-area">
             <h3>選擇你的角色</h3>
-            <div className="character-grid">
-              {characterTypes.map((char) => (
-                <button
-                  key={char.id}
-                  onClick={() => handleSelectCharacter(char.id)}
-                  disabled={
-                    loading || mySlot.character === char.id || mySlot.is_ready
-                  }
-                  className={`character-card ${
-                    mySlot.character === char.id ? "selected" : ""
-                  }`}
-                >
-                  <div className="character-name">{char.name}</div>
-                  {mySlot.character === char.id && (
-                    <div className="selected-mark">✓ 已選擇</div>
-                  )}
-                </button>
-              ))}
+
+            {/* Character Detail Section - Only show if character exists */}
+            {(() => {
+              const displayChar = previewCharacter || charactersData.find(c => c.id === mySlot.character);
+              if (!displayChar) return null;
+
+              return (
+                <div className="character-detail">
+                  <div className="character-detail-left">
+                    <img
+                      src={`${process.env.PUBLIC_URL}/characters/${displayChar.fullImage}`}
+                      alt={displayChar.name}
+                      className="character-full-image"
+                      onError={(e) => {
+                        e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300"><rect width="200" height="300" fill="%23667eea"/><text x="50%" y="50%" fill="white" font-size="20" text-anchor="middle" dominant-baseline="middle">' + encodeURIComponent(displayChar.name) + '</text></svg>';
+                      }}
+                    />
+                  </div>
+                  <div className="character-detail-right">
+                    <h2>{displayChar.name}</h2>
+                    <div className="character-description">{displayChar.description}</div>
+
+                    <div className="character-attributes">
+                      <h4>主要屬性</h4>
+                      <div className="attributes-list">
+                        {displayChar.primaryAttributes.map((attr) => (
+                          <span key={attr} className="attribute-badge">
+                            {attributeNames[attr as AttributeType] || attr}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="character-skills">
+                      <h4>技能</h4>
+                      {displayChar.skills.map((skill, idx) => (
+                        <div key={idx} className="skill-item">
+                          <div className="skill-name">✨ {skill.name}</div>
+                          <div className="skill-description">{skill.description}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Character Grid */}
+            <div className="character-grid-container">
+              <div
+                className="character-avatars-grid"
+                style={{
+                  gridTemplateColumns: `repeat(10, 1fr)`,
+                  gridTemplateRows: `repeat(${Math.ceil(charactersData.length / 10)}, 1fr)`
+                }}
+              >
+                {charactersData.map((char) => {
+                  const isSelected = mySlot.character === char.id;
+                  const isPreviewing = previewCharacter?.id === char.id;
+
+                  return (
+                    <div
+                      key={char.id}
+                      className={`character-avatar ${isSelected ? "selected" : ""} ${isPreviewing ? "previewing" : ""}`}
+                      onClick={() => {
+                        if (!mySlot.is_ready) {
+                          setPreviewCharacter(char);
+                          handleSelectCharacter(char.id);
+                        }
+                      }}
+                    >
+                      <img
+                        src={`${process.env.PUBLIC_URL}/characters/${char.avatar}`}
+                        alt={char.name}
+                        className="avatar-image"
+                        onError={(e) => {
+                          e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="%23667eea"/><text x="50%" y="50%" fill="white" font-size="12" text-anchor="middle" dominant-baseline="middle">' + encodeURIComponent(char.name) + '</text></svg>';
+                        }}
+                      />
+                      {isSelected && (
+                        <div className="selected-checkmark">✓</div>
+                      )}
+                      <div className="avatar-title">{char.name}</div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -1287,6 +1470,7 @@ function App() {
           </div>
         </div>
       </div>
+      </>
     );
   }
 
@@ -1297,7 +1481,12 @@ function App() {
     const isMyTurn = gameInfo.current_player_index === mySlotId;
 
     return (
-      <div className="App">
+      <>
+        {/* Background Music Audio Element */}
+        <audio ref={musicRef} loop preload="auto">
+          <source src={`${process.env.PUBLIC_URL}/music/lobby.mp3`} type="audio/mpeg" />
+        </audio>
+        <div className="App">
         <header className="game-header">
           <div className="header-left">
             <h1>🧙‍♂️ MageBattle</h1>
@@ -1315,6 +1504,9 @@ function App() {
             <button onClick={() => setIsGuideOpen(true)} className="btn-small btn-guide">
               📖 指南
             </button>
+            <button onClick={() => setIsVolumeControlOpen(true)} className="btn-small btn-guide">
+              🔊 音量
+            </button>
             <button onClick={resetAll} className="btn-small btn-warning">
               重置
             </button>
@@ -1323,6 +1515,16 @@ function App() {
 
         {/* Guide Modal */}
         <Guide isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
+
+        {/* Volume Control Modal */}
+        <VolumeControl
+          isOpen={isVolumeControlOpen}
+          onClose={() => setIsVolumeControlOpen(false)}
+          bgVolume={bgVolume}
+          sfxVolume={sfxVolume}
+          onBgVolumeChange={setBgVolume}
+          onSfxVolumeChange={setSfxVolume}
+        />
 
         {error && <div className="error">{error}</div>}
 
@@ -2201,11 +2403,17 @@ function App() {
           </div>
         </div>
       </div>
+      </>
     );
   }
 
   // Loading/Error state
   return (
+    <>
+      {/* Background Music Audio Element */}
+      <audio ref={musicRef} loop>
+        <source src={`${process.env.PUBLIC_URL}/music/lobby.mp3`} type="audio/mpeg" />
+      </audio>
     <div className="App">
       <div className="welcome">
         <h1>載入中...</h1>
@@ -2215,6 +2423,7 @@ function App() {
         </button>
       </div>
     </div>
+    </>
   );
 }
 

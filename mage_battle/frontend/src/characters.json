@@ -1,0 +1,64 @@
+{
+  "characters": [
+    {
+      "id": "FlamePoison",
+      "name": "火毒法師",
+      "avatar": "avatar/flame_poison.png",
+      "fullImage": "full/flame_poison.png",
+      "primaryAttributes": ["Fire", "Poison"],
+      "description": "精通火焰與毒素的法師，擅長持續傷害與爆發輸出。",
+      "skills": [
+        {
+          "name": "燃燒殆盡",
+          "type": "liberation",
+          "description": "解放技能 - 燃燒殆盡：對所有敵人造成大量火焰傷害。"
+        }
+      ]
+    },
+    {
+      "id": "WoodWind",
+      "name": "木風法師",
+      "avatar": "avatar/wood_wind.png",
+      "fullImage": "full/wood_wind.png",
+      "primaryAttributes": ["Wood", "Wind"],
+      "description": "精通自然與風之力量的法師，擅長防禦與控制。",
+      "skills": [
+        {
+          "name": "守護木雕",
+          "type": "liberation",
+          "description": "解放技能 - 守護木雕：獲得強大的護盾並減少受到的傷害。"
+        }
+      ]
+    },
+    {
+      "id": "ThunderPoison",
+      "name": "雷毒法師",
+      "avatar": "avatar/thunder_poison.png",
+      "fullImage": "full/thunder_poison.png",
+      "primaryAttributes": ["Thunder", "Poison"],
+      "description": "掌握雷電與毒素的法師，擅長控制與削弱敵人。",
+      "skills": [
+        {
+          "name": "雷霆萬鈞",
+          "type": "liberation",
+          "description": "解放技能 - 雷霆萬鈞：麻痺所有敵人並造成雷電傷害。"
+        }
+      ]
+    },
+    {
+      "id": "WaterWind",
+      "name": "水風法師",
+      "avatar": "avatar/water_wind.png",
+      "fullImage": "full/water_wind.png",
+      "primaryAttributes": ["Water", "Wind"],
+      "description": "操縱水流與風之力的法師，擅長治療與支援。",
+      "skills": [
+        {
+          "name": "生命之泉",
+          "type": "liberation",
+          "description": "解放技能 - 生命之泉：大量治療所有友方單位。"
+        }
+      ]
+    }
+  ]
+}

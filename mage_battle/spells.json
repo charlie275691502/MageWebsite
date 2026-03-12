@@ -92,7 +92,7 @@
       "spell_id": "A12",
       "name": "奧義：老樹",
       "cost": "木5",
-      "description": "賦予自身「免疫」兩回合",
+      "description": "賦予自身「免疫」兩回合。免疫：免疫傷害與負面效果",
       "target_pool": "Self_",
       "effects": [{"type": "BuffSelfTwo", "params": ["Immune"]}]
     },
@@ -296,7 +296,7 @@
       "spell_id": "B12",
       "name": "木元素分身",
       "cost": "木4 風4",
-      "description": "造成7點傷害。賦予自身「化身」一回合",
+      "description": "造成7點傷害。賦予自身「化身」一回合。化身：免疫傷害與負面效果，持續直到下一位玩家完成行動",
       "target_pool": "Default",
       "effects": [
         {"type": "Damage", "params": [7]},
@@ -372,7 +372,7 @@
       "spell_id": "B20",
       "name": "元素解離",
       "cost": "雷4 毒2",
-      "description": "造成5點傷害。賦予目標「封印」一回合",
+      "description": "造成5點傷害。賦予目標「封印」一回合。封印：無法使用解放技能",
       "target_pool": "Default",
       "effects": [
         {"type": "Damage", "params": [5]},
@@ -383,7 +383,7 @@
       "spell_id": "B21",
       "name": "元素真空",
       "cost": "雷4 毒4",
-      "description": "造成7點傷害。賦予目標「元素剝離」一回合",
+      "description": "造成7點傷害。賦予目標「元素剝離」一回合。元素剝離：使用法術時不會帶有屬性精通效果",
       "target_pool": "Default",
       "effects": [
         {"type": "Damage", "params": [7]},
@@ -435,7 +435,7 @@
       "spell_id": "B26",
       "name": "水元素分身",
       "cost": "水4 風4",
-      "description": "造成7點傷害。賦予自身「化身」一回合",
+      "description": "造成7點傷害。賦予自身「化身」一回合。化身：免疫傷害與負面效果，持續直到下一位玩家完成行動",
       "target_pool": "Default",
       "effects": [
         {"type": "Damage", "params": [7]},
@@ -458,7 +458,7 @@
       "spell_id": "B28",
       "name": "寄生水蛭",
       "cost": "水4 毒4",
-      "description": "賦予目標永久「生命汲取」。每個自己回合開始時對其造成1點傷害並回復1點生命。視為一個負面狀態",
+      "description": "賦予目標永久「生命汲取」。每個自己回合開始時對其造成1點傷害並回復1點生命。生命汲取：回合開始時對指定對象造成1點傷害並回復自身1點生命",
       "target_pool": "Default",
       "effects": [{"type": "HealthDrain", "params": []}]
     },
@@ -488,7 +488,7 @@
       "spell_id": "B31",
       "name": "黑風",
       "cost": "風3 毒3",
-      "description": "賦予指定目標「癱瘓」一回合",
+      "description": "賦予指定目標「癱瘓」一回合。癱瘓：無法行動",
       "target_pool": "ChooseFromEnemies",
       "effects": [{"type": "BuffOne", "params": ["Paralysis"]}]
     },
