@@ -7,6 +7,7 @@ import {
   JoinRoomResponse,
   StartGameResponse,
 } from "./api/lobbyApi";
+import { testApi, TestScenarioInfo } from "./api/testApi";
 import cardsDataRaw from "./cards.json";
 import spellsDataRaw from "./spells.json";
 import Guide from "./components/Guide";
@@ -375,6 +376,13 @@ function App() {
       setScreen("waiting_room");
     }
   }, []);
+
+  // Load test scenarios when on lobby screen (only in local environment)
+  useEffect(() => {
+    if (screen === "lobby" && isLocalEnvironment()) {
+      loadTestScenarios();
+    }
+  }, [screen]);
 
   const loadRoomInfo = async () => {
     if (!roomCode) return;
@@ -753,6 +761,43 @@ function App() {
     setScreen("lobby");
   };
 
+  const loadTestScenarios = async () => {
+    try {
+      setLoadingTestScenarios(true);
+      const scenarios = await testApi.listTestScenarios();
+      setTestScenarios(scenarios);
+      setError(null);
+    } catch (err: any) {
+      console.error("Failed to load test scenarios:", err);
+      // Don't set error state for test scenarios, just log it
+    } finally {
+      setLoadingTestScenarios(false);
+    }
+  };
+
+  const handleCreateTestGame = async (scenarioId: string) => {
+    try {
+      setLoading(true);
+      const response = await testApi.createTestGame(scenarioId);
+
+      setGameId(response.game_id);
+      localStorage.setItem("mage_game_id", response.game_id);
+
+      // Set mySlotId to 0 for test games (the test player is always slot 0)
+      setMySlotId(0);
+      localStorage.setItem("mage_slot_id", "0");
+
+      setGameLog([]); // Clear logs when starting a test game
+      previousGameInfoRef.current = null; // Clear previous game state
+      setScreen("game");
+      setError(null);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Game actions
   const addLog = (result: ActionResult) => {
     // Filter out specific message types
@@ -841,6 +886,16 @@ function App() {
 
   // Guide state
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+
+  // Test mode state
+  const [testScenarios, setTestScenarios] = useState<TestScenarioInfo[]>([]);
+  const [loadingTestScenarios, setLoadingTestScenarios] = useState(false);
+
+  // Check if running in local environment
+  const isLocalEnvironment = () => {
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+    return apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1');
+  };
 
   const playBoltWithCard = async (
     cardId: number,
@@ -990,7 +1045,15 @@ function App() {
           </div>
 
           <div className="instructions">
-            <h3>📖 遊戲說明</h3>
+            <div className="instructions-header">
+              <h3>📖 遊戲說明</h3>
+              <button
+                onClick={() => setIsGuideOpen(true)}
+                className="btn-guide-inline"
+              >
+                查看完整指南
+              </button>
+            </div>
             <ul>
               <li>創建房間或使用代碼加入房間</li>
               <li>每個瀏覽器控制一個角色</li>
@@ -999,6 +1062,44 @@ function App() {
               <li>擊敗對方隊伍的兩位玩家獲勝</li>
             </ul>
           </div>
+
+          {/* Guide Modal */}
+          <Guide isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
+
+          {/* Test Scenarios Section - Only show in local environment */}
+          {isLocalEnvironment() && (
+            <div className="test-scenarios-section">
+              <h3>🧪 測試場景</h3>
+              <p className="test-description">
+                快速開始預設好的測試場景，用於測試法術和增益效果
+              </p>
+              {loadingTestScenarios ? (
+                <div className="test-loading">載入測試場景中...</div>
+              ) : testScenarios.length > 0 ? (
+                <div className="test-scenarios-grid">
+                  {testScenarios.map((scenario) => (
+                    <div key={scenario.scenario_id} className="test-scenario-card">
+                      <div className="test-scenario-header">
+                        <strong>{scenario.scenario_id}</strong>
+                      </div>
+                      <div className="test-scenario-description">
+                        {scenario.description}
+                      </div>
+                      <button
+                        onClick={() => handleCreateTestGame(scenario.scenario_id)}
+                        disabled={loading}
+                        className="btn-test"
+                      >
+                        {loading ? "創建中..." : "開始測試"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="test-empty">沒有可用的測試場景</div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );

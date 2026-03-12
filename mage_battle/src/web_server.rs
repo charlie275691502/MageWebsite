@@ -20,6 +20,7 @@ use crate::lobby_types::{
     LeaveRoomRequest, SelectCharacterRequest, SelectTeamRequest, ReadyRequest, StartGameRequest,
     StartGameResponse, RoomDto,
 };
+use crate::test_config::TestConfig;
 
 /// 全局遊戲狀態
 pub struct GameStore {
@@ -38,6 +39,12 @@ impl GameStore {
     pub fn create_game(&self, player_names: Vec<String>, characters: Vec<crate::character::CharacterType>) -> String {
         let game_id = Uuid::new_v4().to_string();
         let game = Game::new(player_names, characters);
+        self.games.insert(game_id.clone(), Arc::new(tokio::sync::Mutex::new(game)));
+        game_id
+    }
+
+    pub fn create_test_game(&self, game: Game) -> String {
+        let game_id = Uuid::new_v4().to_string();
         self.games.insert(game_id.clone(), Arc::new(tokio::sync::Mutex::new(game)));
         game_id
     }
@@ -89,6 +96,10 @@ pub fn create_router() -> Router {
         .route("/api/game/new", post(create_game))
         .route("/api/game/:game_id", get(get_game_info))
         .route("/api/game/:game_id", post(delete_game))
+
+        // 測試系統
+        .route("/api/test/scenarios", get(list_test_scenarios))
+        .route("/api/test/create/:scenario_id", post(create_test_game))
 
         // 遊戲動作
         .route("/api/game/:game_id/allocate", post(allocate_attribute))
@@ -202,6 +213,91 @@ async fn delete_game(
 ) -> impl IntoResponse {
     store.remove_game(&game_id);
     (StatusCode::OK, Json(ApiResponse::ok("遊戲已刪除".to_string())))
+}
+
+// ==================== 測試系統處理器 ====================
+
+#[derive(serde::Serialize)]
+struct TestScenarioInfo {
+    scenario_id: String,
+    description: String,
+}
+
+/// 列出所有測試場景
+async fn list_test_scenarios() -> impl IntoResponse {
+    match TestConfig::load_from_file("testing_config.json") {
+        Ok(config) => {
+            let scenarios: Vec<TestScenarioInfo> = config
+                .list_scenarios()
+                .into_iter()
+                .map(|(id, desc)| TestScenarioInfo {
+                    scenario_id: id.to_string(),
+                    description: desc.to_string(),
+                })
+                .collect();
+            (StatusCode::OK, Json(ApiResponse::ok(scenarios)))
+        }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::<Vec<TestScenarioInfo>>::error(
+                "LOAD_FAILED".to_string(),
+                format!("無法載入測試配置: {}", e),
+            )),
+        ),
+    }
+}
+
+#[derive(serde::Serialize)]
+struct CreateTestGameResponse {
+    game_id: String,
+    scenario_id: String,
+    scenario_description: String,
+}
+
+/// 從測試場景創建遊戲
+async fn create_test_game(
+    State(store): State<AppState>,
+    Path(scenario_id): Path<String>,
+) -> impl IntoResponse {
+    match TestConfig::load_from_file("testing_config.json") {
+        Ok(config) => {
+            if let Some(scenario) = config.get_scenario(&scenario_id) {
+                match scenario.create_game() {
+                    Ok(game) => {
+                        let game_id = store.create_test_game(game);
+                        let response = CreateTestGameResponse {
+                            game_id,
+                            scenario_id: scenario.scenario_id.clone(),
+                            scenario_description: scenario.description.clone(),
+                        };
+                        (StatusCode::OK, Json(ApiResponse::ok(response)))
+                    }
+                    Err(e) => (
+                        StatusCode::BAD_REQUEST,
+                        Json(ApiResponse::<CreateTestGameResponse>::error(
+                            "CREATE_FAILED".to_string(),
+                            format!("創建測試遊戲失敗: {}", e),
+                        )),
+                    ),
+                }
+            } else {
+                (
+                    StatusCode::NOT_FOUND,
+                    Json(ApiResponse::<CreateTestGameResponse>::error(
+                        "SCENARIO_NOT_FOUND".to_string(),
+                        format!("找不到測試場景: {}", scenario_id),
+                    )),
+                )
+            }
+        }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::<CreateTestGameResponse>::error(
+                "LOAD_FAILED".to_string(),
+                format!("無法載入測試配置: {}", e),
+            )),
+        ),
+    }
 }
 
 // ==================== Lobby 處理器 ====================

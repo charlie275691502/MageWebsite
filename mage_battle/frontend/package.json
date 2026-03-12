@@ -17,7 +17,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "predeploy": "npm run build",
+    "predeploy": "[ -f .env.local ] && mv .env.local .env.local.tmp || true; npm run build; [ -f .env.local.tmp ] && mv .env.local.tmp .env.local || true",
     "deploy": "gh-pages -d build"
   },
   "eslintConfig": {

@@ -10,3 +10,4 @@ pub mod lobby;
 pub mod lobby_types;
 pub mod api_types;
 pub mod web_server;
+pub mod test_config;
